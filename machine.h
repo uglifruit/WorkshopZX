@@ -7,7 +7,11 @@
 // timing (the ULA/beeper stay synced at instruction granularity, which is fine
 // for the border/beeper/50Hz interrupt).
 #pragma once
+// z80.h is a C header with no extern "C" guard of its own; wrap it so C++ TUs
+// (webui.cpp, machine.cpp) all see C linkage and link against the C core.
+extern "C" {
 #include "z80.h"          // superzazu core (vendor/sz80/ on the include path)
+}
 #include "spectrum.h"
 
 namespace zx {

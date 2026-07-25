@@ -94,6 +94,18 @@ void WebUI::ApplyDecoded(void *machinePtr)
 	const uint8_t *s = decodedState_;
 	if (decodedStateLen_ < 30) return;
 
+	// Clear the CPU's INTERNAL state (iff_delay, int_pending, mem_ptr, prefix/
+	// step, interrupt latches) without wiping RAM — the browser already filled
+	// the RAM banks. Without this, residual state from a previous program (e.g.
+	// the AY/PT3 player's IM2 interrupts) survives and corrupts the new snapshot,
+	// so a .z80 loaded after an .ay/.pt3 wouldn't run until a hardware reset.
+	// z80_init NULLs the bus callbacks, so save + restore them around it.
+	auto rb = z->read_byte; auto wb = z->write_byte;
+	auto pin = z->port_in;  auto pout = z->port_out; void *ud = z->userdata;
+	z80_init(z);
+	z->read_byte = rb; z->write_byte = wb;
+	z->port_in = pin;  z->port_out = pout; z->userdata = ud;
+
 	z->a = s[0];
 	auto setF = [&](uint8_t f){
 		z->sf=(f>>7)&1; z->zf=(f>>6)&1; z->yf=(f>>5)&1; z->hf=(f>>4)&1;
