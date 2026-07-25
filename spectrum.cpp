@@ -103,6 +103,7 @@ void Spectrum::Reset()
 	xc.probeAddr = 0x4000;   // default probe = start of screen memory (16384)
 	xc.probeVal = 0;
 	xc.sampleCount = 0;
+	xc.audioReady = false;   // core 0 mutes audio until core 1 signals ready
 	xc.speedPct = 100;   // default real-time until core 0 reads Knob Main
 	xc.mode = MODE_128K; // default; load path sets 48K/AY
 	frameTStates = 0;

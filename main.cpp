@@ -60,6 +60,14 @@ public:
 		if (ZX_HAVE_SNAPSHOT)
 			LoadSnapshot(gMachine, snapshot_z80, snapshot_z80_len);
 		gWebUI.Init(&gSpectrum, &gMapper);   // USB-MIDI/SysEx Web UI on this core
+
+		// Warm-up: run a few frames of emulation with the audio outputs still
+		// muted (audioReady=false), so any power-on / first-instruction beeper
+		// click passes silently. Then unmute.
+		for (int i = 0; i < 4; i++)                 // ~4 frames (~80ms)
+			gMachine.Run(kTStatesPerFrame);
+		gSpectrum.xc.audioReady = true;
+
 		EmulationCore();
 	}
 
@@ -90,7 +98,10 @@ public:
 				// already decoded it: RAM banks were written directly as pages
 				// arrived, so we just apply the register/paging state. (No Reset()
 				// — that would wipe the RAM the browser just filled.)
+				gSpectrum.xc.audioReady = false;   // mute over the load transient
 				gWebUI.ApplyDecoded(&gMachine);
+				for (int i = 0; i < 4; i++) gMachine.Run(kTStatesPerFrame); // warm up
+				gSpectrum.xc.audioReady = true;
 				gWebUI.ClearSnapshot();
 				lastSample = gSpectrum.xc.sampleCount;
 				wasPaused = false;
@@ -198,20 +209,24 @@ public:
 		srcValue[SRC_SWITCH] = (sw == Switch::Down) ? 255 : 0;
 		gMapper.Apply(srcActive, srcValue, gSpectrum);
 
+		// Mute the audio outputs until the emulator has warmed up (kills the
+		// power-on / first-instruction beeper click). Border/CV/LEDs stay live.
+		bool ready = gSpectrum.xc.audioReady;
+
 		// Latch emulator outputs (written by core 1) to the hardware.
-		PulseOut1(gSpectrum.xc.beeper);           // beeper (dry)
-		PulseOut2(gSpectrum.xc.mic);              // MIC/tape
-		AudioOut2(gSpectrum.xc.aySample);         // AY (dry)
+		PulseOut1(ready && gSpectrum.xc.beeper);  // beeper (dry)
+		PulseOut2(ready && gSpectrum.xc.mic);     // MIC/tape
+		AudioOut2(ready ? gSpectrum.xc.aySample : 0);  // AY (dry)
 
 		// --- Reverb (Knob X wet/dry) -> Audio Out 1 ---------------------------
 		// Feed the beeper (as a ±level) + AY into the reverb; Audio Out 1 carries
 		// a wet/dry blend so you get ambience without touching the dry outs.
-		int16_t dry = int16_t((gSpectrum.xc.beeper ? 600 : -600) + gSpectrum.xc.aySample);
+		int16_t dry = ready ? int16_t((gSpectrum.xc.beeper ? 600 : -600) + gSpectrum.xc.aySample) : 0;
 		if (dry > 2047) dry = 2047; else if (dry < -2048) dry = -2048;
 		int16_t wet = gReverb.Process(dry);
 		int32_t wetAmt = KnobVal(Knob::X);        // 0..4095
 		int32_t mixed = (dry * (4095 - wetAmt) + wet * wetAmt) >> 12;
-		AudioOut1(int16_t(mixed));
+		AudioOut1(ready ? int16_t(mixed) : 0);
 
 		// Border colour still drives CV Out 1 (a voltage), but no longer the LEDs.
 		uint8_t b = gSpectrum.xc.border;

@@ -142,6 +142,11 @@ struct CrossCore
 	// --- time reference, written by core 0, read by core 1 for pacing ---
 	volatile uint32_t sampleCount; // ++ every 48kHz sample
 
+	// --- startup gate: core 1 sets true once the emulator is set up + a program
+	// loaded, so core 0 can mute the audio outputs until then (kills a boot click
+	// from the transient / the loaded program's first ULA writes). ---
+	volatile bool audioReady;
+
 	// --- control, written by core 0, consumed by core 1 ---
 	volatile bool resetRequest;    // request snapshot reload (currently unbound)
 	volatile bool paused;          // core 0 sets when Switch == Up (freeze)
