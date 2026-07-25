@@ -98,6 +98,31 @@ Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
 
 ---
 
+## OneBit alternate boot mode
+
+Hold the momentary switch **Down** while powering on (or resetting) the card to boot
+**OneBit** — Andy's 1-bit "beeper synth", which ports classic ZX-Spectrum beeper
+music engines. Boot normally (switch not held) for the Spectrum. It's a separate
+program sharing the same firmware, so all of OneBit's own controls apply:
+
+| Control | OneBit function |
+|---------|-----------------|
+| **Knob Main** | **Engine × decay** — seven engine bands (Beep → PlipPlop → Tritone → Qchan → Phaser → Savage → Music Box); within each band the knob sweeps note-decay short → long |
+| **Knob X** | **Root pitch** (~C1–C6), summed with CV In 1 |
+| **Knob Y** | Voice-2 interval (Switch Up: solo / unison / m3 / M3 / P5 / dom7 / octave) or a per-engine timbre control (Switch Mid) |
+| **Switch Up** | Duophonic — voice 2 = CV In 1 root + Knob Y interval |
+| **Switch Middle** | Duophonic — voice 2 = CV In 2 (its own 1V/oct); Knob Y = timbre |
+| **Switch Down** | Momentary tap cycles the drum kit (Click → Tritone → PCM → Synth) |
+| **CV In 1** | Voice 1 pitch, 1V/oct (+ Knob X) |
+| **CV In 2** | Voice 2 pitch, 1V/oct (in Switch Middle) |
+| **Audio In 1** | Duty / pulse-width mod; also latches the drum select at each Pulse In 2 edge |
+| **Audio In 2** | Duty / timbre mod |
+| **Pulse In 1** | Note gate — rising edge triggers the envelope, held sustains, falling releases |
+| **Pulse In 2** | Drum trigger (drum chosen by Audio In 1) |
+
+(OneBit runs at 144 MHz; the Spectrum runs at 200 MHz. The boot dispatcher sets the
+clock for whichever you choose.) See OneBit's own repo/README for the full details.
+
 ## How it runs
 
 `ProcessSample()` runs at 48 kHz — far too slow to *be* the 3.5 MHz Z80 clock — so
@@ -156,8 +181,8 @@ This card stands on a lot of other people's work. Thank you, all of you.
 - Format & hardware references: **World of Spectrum** and the **Sinclair Wiki**
   (`.z80`/`.sna`/`.ay` formats, `0x7FFD` paging, ULA port decode, AY, Kempston);
   Sean Young, *Z80 Undocumented Documented*; Chris Smith, *The ZX Spectrum ULA*;
-  the **FUSE** emulator and **zexall** test suite as verification references;
-  **Project AY** for the `.ay` format.
+  the **zexall** test suite as a Z80 verification reference; **Project AY** for the
+  `.ay` format. **Spectaculator 8** was used as the reference emulator for testing.
 
 **Sibling card**
 - **OneBit** (bundled as the alternate boot mode) ports classic ZX-Spectrum 1-bit
