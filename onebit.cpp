@@ -359,23 +359,22 @@ public:
 		if (duty < 1) duty = 1;
 		uint32_t dutyHi = uint32_t(duty);
 
-		// Savage SKEW (Jason Brooke): the original XORs each channel's PERIOD by a
-		// fixed skew value each note-tick (CHAN_SKEW_PARAM ^= CHAN_SKEW_XORING),
-		// giving a gritty-but-PITCHED timbre — not noise. We replicate that by
-		// XOR-modulating the phase increment per voice below. The skew value
-		// toggles at a musical rate (not per audio sample, which was the bug that
-		// made this a harsh noise-hash). Depth = a skew amount on the period; in
-		// Switch-Mid, Knob Y (timbreY) scales it as a live timbre control.
-		uint32_t savageSkew = 0;   // Savage keeps the normal duty; skew is on the period
+		// Savage SKEW (Jason Brooke): the original XOR-wanders each channel's
+		// PERIOD by a small amount each note-tick, gritting the tone while it
+		// stays PITCHED. We apply it as a small PROPORTIONAL perturbation of the
+		// phase increment (so the base pitch still tracks CV/Knob), toggling sign
+		// at a musical rate. `savageBits` is a mask on the LOW bits of inc that
+		// gets XOR-toggled — bounded so it grits but never swamps the pitch.
+		// Depth (0..~7) sets how many low bits wander; Knob Y scales it in Mid.
+		uint32_t savageMask = 0;
+		bool savageOn = false;
 		if (engine == EngSavage)
 		{
-			// Toggle the skew XOR direction slowly (~a few hundred Hz), so the
-			// period wobbles between two values rather than randomising.
 			skewReg += 1;
-			int32_t depth = 16 + (dutyBase >> 3) + (timbreY >> 6); // Knob Y in Mid
-			// A period-XOR value scaled into the phase-increment domain.
-			savageSkew = uint32_t(depth) << 12;
-			if (skewReg & 0x40) savageSkew = ~savageSkew; // alternate the XOR sign
+			int32_t depth = 3 + (dutyBase >> 8) + (timbreY >> 9); // 3..~8 bits
+			if (depth > 10) depth = 10;
+			savageMask = (1u << depth) - 1;          // low-bit wander mask
+			savageOn = (skewReg & 0x40) != 0;        // toggle at a musical rate
 		}
 
 		// Qchan volume mask (per voice): the envelope acts as a 0..16 AND-mask
@@ -504,13 +503,15 @@ public:
 			case EngSavage:
 			{
 				// Jason Brooke's Savage: pulse-interleave with SKEW — each voice's
-				// PERIOD is XOR-modulated (savageSkew), so the pitch grits/wobbles
-				// while staying tonal. Two voices interleaved (XOR).
+				// increment is perturbed on its LOW bits only (savageMask), so the
+				// tone grits/wobbles while the base PITCH (high bits) still tracks
+				// CV/Knob. Two voices interleaved (XOR).
 				bool out = false;
 				for (int v = 0; v < nActive; v++)
 				{
-					uint32_t skewedInc = uint32_t(inc[v]) ^ savageSkew; // period XOR
-					phase[v] += skewedInc;
+					uint32_t sInc = uint32_t(inc[v]);
+					if (savageOn) sInc ^= savageMask;   // wander only the low bits
+					phase[v] += sInc;
 					bool sq = (phase[v] >> 24) < dutyHi;
 					if (sq) out = !out;
 				}
