@@ -1,0 +1,102 @@
+Name: ZX
+Description: "ZX — a cycle-accurate ZX Spectrum 128K (Z80 + ULA + banked RAM + AY sound chip) running inside the Workshop Computer, that turns the modular jacks and switch into a patchable control surface for the running Spectrum program. Snapshots load baked-in or over a USB Web UI; that same Web UI maps CV/gates/audio inputs to Spectrum keypresses and Kempston joystick via a clickable keyboard."
+Language: C++ (Pico SDK / ComputerCard)
+Creator: Andy Jenkinson (uglifruit)
+Version: 0.1.0
+Status: development
+
+tags:
+  - emulator
+  - z80
+  - zx-spectrum
+  - spectrum-128k
+  - ay-3-8912
+
+manual: |
+  A cycle-accurate ZX Spectrum 128K runs across both RP2040 cores. Core 1 free-runs
+  the Z80 + ULA + AY at the true emulated 3.5MHz rate and services USB; core 0's
+  48kHz ProcessSample() latches the beeper to Pulse Out 1 and the AY render to Audio
+  Out 2, samples the six input jacks + switch, and runs a user-defined mapping table
+  that presents those inputs to the Spectrum as keyboard-matrix bits, Kempston
+  joystick directions, or raw input-port values.
+  Programs are loaded as .sna / .z80 snapshots — baked into firmware (Knob X selects
+  a bank) and/or uploaded live from a browser over USB (WebMIDI/SysEx to a local
+  HTML page). The same Web UI edits the input mapping with a clickable Spectrum
+  keyboard graphic. Tape loading (LOAD "") from Audio In is a stretch goal; snapshots
+  are the primary path.
+
+panel:
+  inputs:
+    - id: CVIn1
+      name: Mapped CV In
+      description: Comparator (threshold+hysteresis) -> Spectrum key / Kempston, or continuous -> input port
+    - id: CVIn2
+      name: Mapped CV In
+      description: Second mappable CV input
+    - id: AudioIn1
+      name: Mapped Audio / Tape EAR
+      description: Mappable as CV; also the tape EAR source for LOAD "" (stretch goal)
+    - id: AudioIn2
+      name: Mapped Audio In
+      description: Second mappable audio-rate input, used as CV
+    - id: PulseIn1
+      name: Mapped Gate
+      description: Edge/level -> Spectrum key or Kempston fire (default: fire)
+    - id: PulseIn2
+      name: Mapped Gate
+      description: Second mappable gate input
+  outputs:
+    - id: PulseOut1
+      name: Beeper
+      description: ULA port 0xFE bit 4 — the 1-bit speaker
+    - id: PulseOut2
+      name: MIC / Assignable Gate
+      description: Tape MIC line, or an assignable gate output
+    - id: CVOut1
+      name: Border Voltage
+      description: ULA port 0xFE bits 0-2 (border colour 0-7) as a stepped CV, or assignable
+    - id: AudioOut1
+      name: Beeper Monitor
+      description: PCM-density render of the beeper
+    - id: AudioOut2
+      name: AY Sound
+      description: AY-3-8912 output (128K music) — 3 squares + noise + envelopes
+
+controls:
+  knobs:
+    - when: { z: any }
+      main:
+        name: Speed
+        description: Emulation speed / turbo (default real-time x1)
+      x:
+        name: Snapshot Bank
+        description: Selects a baked-in snapshot
+      y:
+        name: Assignable
+        description: Mappable control (assigned in the Web UI)
+  switches:
+    - id: Z
+      up:
+        name: Run
+        description: Spectrum runs at the selected speed
+      middle:
+        name: Pause
+        description: Pauses emulation
+      down:
+        name: NMI / Reset
+        description: Momentary — configurable NMI or machine reset
+
+  leds:
+    - when: { z: any }
+      display: list
+      items:
+        - id: LED0
+          name: Border / activity
+          description: Border colour bar + CPU / AY / paging activity
+
+host:
+  notes: |
+    Version 0.1.0 — development. Full-fat target: cycle-accurate 128K (Z80 verified
+    against zexall/FUSE vectors), AY on Audio Out 2, snapshot loading, an input->key
+    mapping engine, and a USB Web UI for snapshot upload + input mapping. Contended
+    memory timing and tape-EAR loading are later/stretch items.

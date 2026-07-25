@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZX — Workshop Computer Web UI</title>
+<style>
+  :root { --bg:#12131a; --fg:#e8e8ef; --dim:#9aa0b4; --accent:#e03030; --panel:#1c1e28; --line:#2c2f3d; --ok:#38d66b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); line-height:1.5; }
+  header { padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; letter-spacing:0.5px; }
+  h1 span { color:var(--accent); }
+  .status { margin-left:auto; font-size:13px; color:var(--dim); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#555; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:var(--ok); }
+  main { max-width:860px; margin:0 auto; padding:20px; display:grid; gap:20px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .panel h2 { margin:0 0 12px; font-size:15px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+  button { background:#262a38; color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:9px 14px; font-size:14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button:disabled { opacity:0.4; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  progress { width:100%; height:10px; }
+  .hint { font-size:13px; color:var(--dim); }
+  /* keyboard */
+  .kb { display:grid; gap:6px; }
+  .kbrow { display:flex; gap:6px; justify-content:center; }
+  .key { min-width:42px; height:44px; background:#262a38; border:1px solid var(--line); border-radius:6px;
+         display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; user-select:none; }
+  .key:hover { border-color:var(--accent); }
+  .key.assigned { background:#2a3550; border-color:#4a6; }
+  .key.picking { outline:2px solid var(--accent); }
+  /* mapping layout: compact table on the left, keyboard on the right */
+  .maplayout { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  table { border-collapse:collapse; flex:0 0 auto; }
+  td { padding:5px 4px; border-bottom:1px solid var(--line); font-size:13px; white-space:nowrap; }
+  td.name { color:var(--dim); padding-right:12px; }
+  .kb { flex:1 1 380px; }
+  .srckey { display:inline-block; min-width:52px; padding:4px 8px; background:#2a3550; border-radius:5px;
+            text-align:center; cursor:pointer; }
+  .srckey:hover { outline:1px solid var(--accent); }
+  /* connection banner */
+  .banner { display:flex; align-items:center; justify-content:center; gap:20px; padding:16px;
+            font-size:18px; font-weight:700; letter-spacing:0.5px; }
+  .banner.off { background:#3a1414; color:#ff8080; }
+  .banner.on  { background:#123322; color:var(--ok); }
+  .banner button { font-size:15px; }
+  main.locked .panel:not(.always) { opacity:0.35; pointer-events:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Z<span>X</span> · Workshop Computer</h1>
+</header>
+
+<!-- Big, unmistakable connection banner -->
+<div id="banner" class="banner off">
+  <div id="bannerText">● NOT CONNECTED</div>
+  <button id="connectBtn" class="primary">Connect to card</button>
+</div>
+
+<main>
+  <p class="hint" style="text-align:center">
+    Use <b>Chrome</b> or <b>Edge</b>. Snapshot upload needs the card switch <b>Up</b> (Pause);
+    key remapping works any time.
+  </p>
+
+  <div class="panel">
+    <h2>Snapshot upload (.z80)</h2>
+    <div class="row">
+      <input type="file" id="fileInput" accept=".z80,.sna">
+      <button id="uploadBtn" disabled>Upload to card</button>
+    </div>
+    <p class="hint">Uploaded while paused; loads fresh when you flick the switch back to <b>Middle</b> (Run).</p>
+    <progress id="prog" value="0" max="1" style="display:none"></progress>
+    <div id="uploadStatus" class="hint"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Input mapping</h2>
+    <p class="hint">Click an <b>input</b> on the left, then click a <b>key</b> to assign it.</p>
+    <div class="maplayout">
+      <table id="mapTable">
+        <tbody></tbody>
+      </table>
+      <div id="kb" class="kb"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="getMapBtn" disabled>Read from card</button>
+      <button id="setMapBtn" class="primary" disabled>Send to card</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Keyboard passthrough</h2>
+    <div class="row">
+      <label class="row" style="gap:8px; cursor:pointer">
+        <input type="checkbox" id="passBox"> <b>Type on your laptop → the Spectrum</b>
+      </label>
+      <span id="passState" class="hint">off</span>
+    </div>
+    <p class="hint">While on, your keystrokes are sent as Spectrum keypresses. Letters, digits,
+      Enter and Space map directly; use <b>Shift</b> for CAPS SHIFT and <b>Ctrl</b> for SYMBOL SHIFT.
+      (Click back on the page if focus is lost.)</p>
+  </div>
+</main>
+
+<script>
+// ---- protocol (must match webui.h) ----------------------------------------
+const MANUF = 0x7D;
+const MSG = { HELLO:0x01, INFO:0x02, SNAP_BEGIN:0x10, SNAP_CHUNK:0x11, SNAP_END:0x12,
+              SNAP_ACK:0x13, MAP_GET:0x20, MAP_REPORT:0x21, MAP_SET:0x22,
+              KEY:0x40, KEY_RESET:0x41, STATUS:0x30 };
+
+// Spectrum matrix order (must match kKeyTable in spectrum.cpp). This defines the
+// INDEX (0..39) each key maps to — the value the firmware expects.
+const MATRIX = [
+  ["CAPS","Z","X","C","V"],
+  ["A","S","D","F","G"],
+  ["Q","W","E","R","T"],
+  ["1","2","3","4","5"],
+  ["0","9","8","7","6"],
+  ["P","O","I","U","Y"],
+  ["ENTER","L","K","J","H"],
+  ["SPACE","SYM","M","N","B"],
+];
+const KEYLABELS = [];               // index -> label
+MATRIX.forEach(r => r.forEach(k => KEYLABELS.push(k)));
+const IDX = {};                     // label -> index
+KEYLABELS.forEach((l,i)=>IDX[l]=i);
+const KEY_NONE = 0xFF;
+
+// QWERTY DISPLAY layout — the familiar arrangement the user sees. Each entry is
+// a label that resolves to its matrix index via IDX. (SYM = symbol shift.)
+const QWERTY = [
+  ["1","2","3","4","5","6","7","8","9","0"],
+  ["Q","W","E","R","T","Y","U","I","O","P"],
+  ["A","S","D","F","G","H","J","K","L","ENTER"],
+  ["CAPS","Z","X","C","V","B","N","M","SYM","SPACE"],
+];
+
+// Input sources, matching enum Source in mapping.h.
+const SOURCES = ["Pulse In 1","Pulse In 2","CV In 1","CV In 2","Audio In 1","Audio In 2","Switch Down"];
+const TGT_KEY = 1;
+
+let midiOut = null, midiIn = null;
+let mapping = SOURCES.map(()=>({kind:TGT_KEY, key:KEY_NONE})); // current UI mapping
+let pickingSource = null;
+
+// ---- 7-bit encode (matches Encode7bit) ------------------------------------
+function encode7(bytes){
+  const out = [];
+  for(let i=0;i<bytes.length;i+=7){
+    const n = Math.min(7, bytes.length-i);
+    let high=0;
+    for(let j=0;j<n;j++) if(bytes[i+j]&0x80) high|=(1<<j);
+    out.push(high);
+    for(let j=0;j<n;j++) out.push(bytes[i+j]&0x7F);
+  }
+  return out;
+}
+
+function sendSysex(payload){
+  if(!midiOut) return;
+  midiOut.send([0xF0, MANUF, ...payload, 0xF7]);
+}
+
+// ---- WebMIDI connect ------------------------------------------------------
+document.getElementById('connectBtn').onclick = async () => {
+  try {
+    const midi = await navigator.requestMIDIAccess({sysex:true});
+    for(const o of midi.outputs.values()) if(/ZX|Workshop|MTM/i.test(o.name)) midiOut=o;
+    for(const i of midi.inputs.values()) if(/ZX|Workshop|MTM/i.test(i.name)) midiIn=i;
+    if(!midiOut){ // fall back to first available
+      midiOut = [...midi.outputs.values()][0];
+      midiIn  = [...midi.inputs.values()][0];
+    }
+    if(midiIn) midiIn.onmidimessage = onMidi;
+    if(midiOut){
+      setStatus(true, "CONNECTED — "+midiOut.name);
+      ['getMapBtn','setMapBtn'].forEach(id=>document.getElementById(id).disabled=false);
+      sendSysex([MSG.HELLO]);
+      sendSysex([MSG.MAP_GET]);
+    } else setStatus(false,"No card found — is it plugged in?");
+  } catch(e){ setStatus(false,"WebMIDI failed: "+e.message); }
+};
+
+function setStatus(on, text){
+  const banner = document.getElementById('banner');
+  banner.className = 'banner ' + (on?'on':'off');
+  document.getElementById('bannerText').textContent = (on?'● ':'● ') + text;
+  document.getElementById('connectBtn').textContent = on ? 'Reconnect' : 'Connect to card';
+  document.querySelector('main').classList.toggle('locked', !on);
+}
+setStatus(false, "NOT CONNECTED");
+
+// ---- incoming ------------------------------------------------------------
+function onMidi(ev){
+  const d = ev.data;
+  if(d[0]!==0xF0 || d[1]!==MANUF) return;
+  const p = d.slice(2, d[d.length-1]===0xF7 ? -1 : undefined);
+  const id = p[0];
+  if(id===MSG.INFO){
+    setStatus(true, `Connected — firmware v${p[1]}.${p[2]}.${p[3]}`);
+  } else if(id===MSG.MAP_REPORT){
+    const count = p[1];
+    for(let s=0;s<count;s++){
+      const base = 2+s*3;
+      mapping[s] = { kind:p[base], key:p[base+1] };
+    }
+    renderMapping(); renderKeyboard();   // refresh QWERTY highlights too
+  } else if(id===MSG.STATUS){
+    document.getElementById('uploadStatus').textContent =
+      p[1]===1 ? "Snapshot loaded — flick switch to Middle to run." :
+      p[1]===2 ? "Mapping updated." : "Status "+p[1];
+  }
+}
+
+// ---- snapshot upload -----------------------------------------------------
+document.getElementById('fileInput').onchange = e => {
+  document.getElementById('uploadBtn').disabled = !(e.target.files.length && midiOut);
+};
+document.getElementById('uploadBtn').onclick = async () => {
+  const f = document.getElementById('fileInput').files[0]; if(!f) return;
+  const buf = new Uint8Array(await f.arrayBuffer());
+  const prog = document.getElementById('prog'); prog.style.display='block'; prog.max=buf.length; prog.value=0;
+  // BEGIN with length as 4 septets (28-bit)
+  const L=buf.length;
+  sendSysex([MSG.SNAP_BEGIN, L&0x7F, (L>>7)&0x7F, (L>>14)&0x7F, (L>>21)&0x7F]);
+  // chunk: ~35 raw bytes -> 40 encoded, safely under the 64-byte MIDI FIFO
+  const CHUNK=35;
+  for(let i=0;i<buf.length;i+=CHUNK){
+    const slice = buf.slice(i, i+CHUNK);
+    sendSysex([MSG.SNAP_CHUNK, ...encode7(slice)]);
+    prog.value = i+CHUNK;
+    await new Promise(r=>setTimeout(r,3)); // let the FIFO drain
+  }
+  sendSysex([MSG.SNAP_END]);
+  prog.value = buf.length;
+  document.getElementById('uploadStatus').textContent = "Upload complete — flick switch to Middle to run.";
+};
+
+// ---- mapping UI ----------------------------------------------------------
+function renderMapping(){
+  const tb = document.querySelector('#mapTable tbody'); tb.innerHTML='';
+  SOURCES.forEach((name,s)=>{
+    const tr=document.createElement('tr');
+    const keyLabel = mapping[s].key===KEY_NONE ? '—' : KEYLABELS[mapping[s].key];
+    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${keyLabel}</span></td>`;
+    tr.querySelector('.srckey').onclick = ()=>{ pickingSource=s; highlightPicking(); };
+    tb.appendChild(tr);
+  });
+  highlightPicking();
+}
+function highlightPicking(){
+  document.querySelectorAll('.srckey').forEach(e=>e.style.outline = (+e.dataset.src===pickingSource)?'2px solid var(--accent)':'');
+}
+function renderKeyboard(){
+  const kb=document.getElementById('kb'); kb.innerHTML='';
+  QWERTY.forEach(row=>{
+    const div=document.createElement('div'); div.className='kbrow';
+    row.forEach(label=>{
+      const myIdx = IDX[label];               // resolve QWERTY label -> matrix index
+      const k=document.createElement('div'); k.className='key'; k.textContent=label;
+      if(mapping.some(m=>m.key===myIdx)) k.classList.add('assigned');
+      k.onclick=()=>{
+        if(pickingSource===null) return;      // pick a source first
+        mapping[pickingSource]={kind:TGT_KEY, key:myIdx};
+        pickingSource=null; renderMapping(); renderKeyboard();
+      };
+      div.appendChild(k);
+    });
+    kb.appendChild(div);
+  });
+}
+document.getElementById('getMapBtn').onclick = ()=> sendSysex([MSG.MAP_GET]);
+document.getElementById('setMapBtn').onclick = ()=>{
+  const payload=[MSG.MAP_SET, SOURCES.length];
+  mapping.forEach(m=>{
+    const key = m.key===KEY_NONE ? KEY_NONE&0x7F : m.key;
+    payload.push(m.kind & 0x7F, key & 0x7F, 0x00); // threshold coarse=0 for keys
+  });
+  sendSysex(payload);
+};
+
+// ---- keyboard passthrough ------------------------------------------------
+// Map a browser KeyboardEvent to Spectrum matrix indices (shifted keys add CAPS).
+function eventToKeys(e){
+  const out=[];
+  const k = e.key;
+  if(e.getModifierState && e.getModifierState('Shift'))   out.push(IDX['CAPS']);
+  if(e.getModifierState && e.getModifierState('Control')) out.push(IDX['SYM']);
+  if(/^[a-zA-Z]$/.test(k)){ out.push(IDX[k.toUpperCase()]); return out; }
+  if(/^[0-9]$/.test(k)){ out.push(IDX[k]); return out; }
+  if(k==='Enter'){ out.push(IDX['ENTER']); return out; }
+  if(k===' '){ out.push(IDX['SPACE']); return out; }
+  if(k==='Backspace'){ out.push(IDX['CAPS'], IDX['0']); return out; } // Spectrum DELETE
+  return out; // may be just a modifier
+}
+const heldKeys = new Map(); // event.code -> [matrix indices] currently held
+let passthrough = false;
+const passBox = document.getElementById('passBox');
+passBox.onchange = ()=>{
+  passthrough = passBox.checked;
+  document.getElementById('passState').textContent =
+    passthrough ? 'ON — typing goes to the Spectrum' : 'off';
+  if(!passthrough && midiOut){ sendSysex([MSG.KEY_RESET]); heldKeys.clear(); }
+};
+window.addEventListener('keydown', e=>{
+  if(!passthrough || !midiOut) return;
+  if(heldKeys.has(e.code)){ e.preventDefault(); return; } // ignore auto-repeat
+  const keys = eventToKeys(e);
+  if(keys.length===0) return;
+  heldKeys.set(e.code, keys);
+  keys.forEach(idx=> sendSysex([MSG.KEY, idx & 0x7F, 1]));
+  e.preventDefault();
+});
+window.addEventListener('keyup', e=>{
+  if(!passthrough || !midiOut) return;
+  const keys = heldKeys.get(e.code);
+  if(!keys) return;
+  heldKeys.delete(e.code);
+  keys.forEach(idx=> sendSysex([MSG.KEY, idx & 0x7F, 0]));
+  e.preventDefault();
+});
+
+renderMapping(); renderKeyboard();
+</script>
+</body>
+</html>
