@@ -1,9 +1,9 @@
 Name: ZX
-Description: "ZX — a cycle-accurate ZX Spectrum 128K (Z80 + ULA + banked RAM + AY sound chip) running inside the Workshop Computer, that turns the modular jacks and switch into a patchable control surface for the running Spectrum program. Snapshots load baked-in or over a USB Web UI; that same Web UI maps CV/gates/audio inputs to Spectrum keypresses and Kempston joystick via a clickable keyboard."
+Description: "ZX — a cycle-accurate ZX Spectrum 128K (Z80 + ULA + banked RAM + AY-3-8912) running inside the Workshop Computer, turning the modular jacks/knobs/switch into a patchable control surface for the running Spectrum. Loads .z80/.sna snapshots and .ay chip-music over a USB Web UI (or baked in); maps CV/gates/audio to keypresses, Kempston joystick or Z80-readable ports; beeper/border/AY out as CV+audio (with reverb); reads any RAM byte out as CV. Carries OneBit as an alternate boot mode."
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: 0.1.0
-Status: development
+Version: 1.0.0
+Status: working
 
 tags:
   - emulator
