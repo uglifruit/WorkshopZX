@@ -25,10 +25,14 @@ namespace zx {
 
 // 16-step logarithmic volume table (AY DAC), scaled so a single channel at full
 // volume is comfortably within the signed 12-bit AudioOut range when three are
-// summed. Values are the classic AY amplitude curve (~3dB/step) * a headroom
-// factor. Full 3-channel sum stays within ±2047.
+// MEASURED AY-3-8912 volume curve (the well-known 16-entry log response from
+// real-chip measurements, as used by MAME/AY emulators), scaled so a full
+// 3-channel sum stays within ±2047 (max single channel = 682). This is more
+// accurate than a generic ~3dB ramp — the lifted low/mid steps give a more
+// natural tone-vs-noise balance (noise still sits forward, which is faithful:
+// broadband noise reads louder than a square at equal peak amplitude).
 static const int16_t kVolTable[16] = {
-	0, 5, 7, 10, 15, 22, 31, 46, 64, 106, 132, 216, 288, 410, 541, 682
+	0, 9, 14, 20, 29, 42, 58, 93, 115, 181, 241, 307, 389, 469, 578, 682
 };
 
 void AY::Reset()
