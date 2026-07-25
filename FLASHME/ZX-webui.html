@@ -11,6 +11,16 @@
   header { padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   h1 { font-size:20px; margin:0; letter-spacing:0.5px; }
   h1 span { color:var(--accent); }
+  /* ZX Spectrum diagonal flash stripes: red / yellow / green / cyan */
+  .zxstripes {
+    width:96px; height:34px; border-radius:4px; flex:0 0 auto;
+    background: repeating-linear-gradient(
+      -45deg,
+      #d00000 0, #d00000 12px,
+      #d0d000 12px, #d0d000 24px,
+      #00d000 24px, #00d000 36px,
+      #00d0d0 36px, #00d0d0 48px );
+  }
   .status { margin-left:auto; font-size:13px; color:var(--dim); }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#555; margin-right:6px; vertical-align:middle; }
   .dot.on { background:var(--ok); }
@@ -52,6 +62,7 @@
 </head>
 <body>
 <header>
+  <div class="zxstripes"></div>
   <h1>Z<span>X</span> · Workshop Computer</h1>
 </header>
 
@@ -68,12 +79,12 @@
   </p>
 
   <div class="panel">
-    <h2>Snapshot upload (.z80)</h2>
+    <h2>Snapshot upload (.z80 / .sna)</h2>
     <div class="row">
       <input type="file" id="fileInput" accept=".z80,.sna">
       <button id="uploadBtn" disabled>Upload to card</button>
     </div>
-    <p class="hint">Uploaded while paused; loads fresh when you flick the switch back to <b>Middle</b> (Run).</p>
+    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3) and <b>.sna</b> (48K/128K). Uploaded while paused; loads fresh when you flick the switch back to <b>Middle</b> (Run).</p>
     <progress id="prog" value="0" max="1" style="display:none"></progress>
     <div id="uploadStatus" class="hint"></div>
   </div>
