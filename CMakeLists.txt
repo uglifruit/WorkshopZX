@@ -61,6 +61,7 @@ else()
     ay.cpp
     snapshot.cpp
     mapping.cpp
+    reverb.cpp
     webui.cpp
     usb_descriptors.c
     vendor/sz80/z80.c)

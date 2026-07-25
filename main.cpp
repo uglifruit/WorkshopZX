@@ -18,6 +18,7 @@
 #include "spectrum.h"
 #include "machine.h"
 #include "mapping.h"
+#include "reverb.h"
 #include "webui.h"
 #include "snapshot_default.h" // pulls in snapshot_data.h if present, else empty
                               // (snapshot_z80[], snapshot_z80_len, ZX_HAVE_SNAPSHOT)
@@ -30,6 +31,7 @@ static Spectrum gSpectrum;
 static Machine  gMachine;
 static Mapper   gMapper;
 static WebUI    gWebUI;
+static Reverb   gReverb;
 
 class ZXCard : public ComputerCard
 {
@@ -37,6 +39,7 @@ public:
 	ZXCard()
 	{
 		gMapper.LoadDefaults();   // light table setup — safe in the constructor
+		gReverb.Reset();          // clear the reverb delay lines
 		// Only launch the second core here. Do NOT do emulator setup
 		// (Attach/Reset — which wires ROM pointers and clears 128KB of RAM) in
 		// this constructor: it runs during ComputerCard's own construction,
@@ -181,9 +184,19 @@ public:
 		gMapper.Apply(srcActive, gSpectrum);
 
 		// Latch emulator outputs (written by core 1) to the hardware.
-		PulseOut1(gSpectrum.xc.beeper);           // beeper
+		PulseOut1(gSpectrum.xc.beeper);           // beeper (dry)
 		PulseOut2(gSpectrum.xc.mic);              // MIC/tape
-		AudioOut2(gSpectrum.xc.aySample);         // AY (silent in boot slice)
+		AudioOut2(gSpectrum.xc.aySample);         // AY (dry)
+
+		// --- Reverb (Knob X wet/dry) -> Audio Out 1 ---------------------------
+		// Feed the beeper (as a ±level) + AY into the reverb; Audio Out 1 carries
+		// a wet/dry blend so you get ambience without touching the dry outs.
+		int16_t dry = int16_t((gSpectrum.xc.beeper ? 600 : -600) + gSpectrum.xc.aySample);
+		if (dry > 2047) dry = 2047; else if (dry < -2048) dry = -2048;
+		int16_t wet = gReverb.Process(dry);
+		int32_t wetAmt = KnobVal(Knob::X);        // 0..4095
+		int32_t mixed = (dry * (4095 - wetAmt) + wet * wetAmt) >> 12;
+		AudioOut1(int16_t(mixed));
 
 		// Border colour -> CV Out 1 (stepped voltage) + left LED column as a bar.
 		uint8_t b = gSpectrum.xc.border;
