@@ -117,6 +117,10 @@ void WebUI::ApplyDecoded(void *machinePtr)
 	z->e_=s[22]; z->d_=s[23]; z->l_=s[24]; z->h_=s[25];
 	z->ix = s[26] | (s[27] << 8);
 	z->iy = s[28] | (s[29] << 8);
+
+	// Silence the AY when loading a new program, so a previous tune (or the AY
+	// player) doesn't keep buzzing under a snapshot that doesn't use the AY.
+	spec_->ay.Reset();
 }
 
 void WebUI::Task()
