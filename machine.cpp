@@ -85,6 +85,11 @@ void Machine::Run(uint32_t tstates)
 			z80_gen_int(z, 0xFF); // maskable frame interrupt, IM1 vector
 		}
 	}
+
+	// Advance the AY by this batch's worth of T-states and publish the current
+	// mixed sample for core 0 to send to Audio Out 2. A batch is ~one 48kHz
+	// sample of emulated time, so this produces AY audio at ~48kHz.
+	spec_->xc.aySample = spec_->ay.Render(tstates);
 }
 
 } // namespace zx

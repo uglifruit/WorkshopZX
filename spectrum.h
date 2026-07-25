@@ -89,11 +89,25 @@ struct AY
 {
 	uint8_t reg[16];
 	uint8_t selected = 0;
-	// internal generator state (counters, envelope, prng) lives in ay.cpp
+
+	// Generator state. The AY is clocked at CPU/2 (~1.7734MHz on the 128K); the
+	// tone/noise/envelope dividers count in AY cycles. We accumulate emulated
+	// T-states and step the generators in AY-clock units.
+	uint32_t toneCounter[3];   // per-channel tone divider counters
+	uint8_t  toneOut[3];       // per-channel square state (0/1)
+	uint32_t noiseCounter;     // noise divider counter
+	uint8_t  noiseOut;         // current noise bit
+	uint32_t noiseRng;         // 17-bit LFSR
+	uint32_t envCounter;       // envelope divider counter
+	uint8_t  envStep;          // 0..31 position in the envelope
+	uint8_t  envVol;           // current envelope volume 0..15
+	bool     envHold;          // envelope finished holding
+	uint32_t tstateFrac;       // leftover CPU T-states (for the /2 -> AY clock)
+
 	void Reset();
 	void Write(uint8_t r, uint8_t v);
 	uint8_t Read(uint8_t r) const { return reg[r & 15]; }
-	// Advance the generators by `tstates` of emulated time and return the
+	// Advance the generators by `tstates` of emulated CPU time and return the
 	// current mixed output as a signed 12-bit sample for AudioOut.
 	int16_t Render(uint32_t tstates);
 };
