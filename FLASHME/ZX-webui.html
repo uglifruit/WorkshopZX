@@ -16,10 +16,10 @@
     width:56px; height:34px; border-radius:4px; flex:0 0 auto;
     background: linear-gradient(
       -45deg,
-      #d00000 0, #d00000 25%,
-      #d0d000 25%, #d0d000 50%,
-      #00d000 50%, #00d000 75%,
-      #00d0d0 75%, #00d0d0 100% );
+      #00d0d0 0, #00d0d0 25%,
+      #00d000 25%, #00d000 50%,
+      #d0d000 50%, #d0d000 75%,
+      #d00000 75%, #d00000 100% );
   }
   .status { margin-left:auto; font-size:13px; color:var(--dim); }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#555; margin-right:6px; vertical-align:middle; }
@@ -79,12 +79,12 @@
   </p>
 
   <div class="panel">
-    <h2>Snapshot upload (.z80 / .sna)</h2>
+    <h2>Snapshot / AY upload (.z80 / .sna / .ay)</h2>
     <div class="row">
-      <input type="file" id="fileInput" accept=".z80,.sna">
+      <input type="file" id="fileInput" accept=".z80,.sna,.ay">
       <button id="uploadBtn" disabled>Upload to card</button>
     </div>
-    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3) and <b>.sna</b> (48K/128K). Uploaded while paused; loads fresh when you flick the switch back to <b>Middle</b> (Run).</p>
+    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3), <b>.sna</b> (48K/128K) snapshots, and <b>.ay</b> chip-music files. Upload with the card switch <b>Up</b> (Pause).</p>
     <progress id="prog" value="0" max="1" style="display:none"></progress>
     <div id="uploadStatus" class="hint"></div>
   </div>
@@ -243,7 +243,7 @@ function onMidi(ev){
     renderMapping(); renderKeyboard();   // refresh QWERTY highlights too
   } else if(id===MSG.STATUS){
     document.getElementById('uploadStatus').textContent =
-      p[1]===1 ? "Snapshot loaded — flick switch to Middle to run." :
+      p[1]===1 ? "✓ Loaded — flick switch to Middle to run." :
       p[1]===2 ? "Mapping updated." :
       p[1]===4 ? "Sending RAM…" :
       "Status "+p[1];
@@ -471,7 +471,9 @@ document.getElementById('uploadBtn').onclick = async () => {
     }
   }
   sendSysex([MSG.LOAD_END]);
-  document.getElementById('uploadStatus').textContent = "Sent — flick switch to Middle to run.";
+  // Don't tell the user to flick the switch yet — wait for the card's load-complete
+  // (MSG_STATUS,1), which sets that message in onMidi(). Just show it's finishing.
+  document.getElementById('uploadStatus').textContent = "Sent — waiting for card…";
 };
 
 // ---- mapping UI ----------------------------------------------------------
