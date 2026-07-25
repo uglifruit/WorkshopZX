@@ -72,18 +72,13 @@ input's live 0–255 value), or **None**. A jack only acts when something is pat
 | **Pulse In 2** | SPACE | key / Kempston / port / none |
 | **CV In 1** | Q (comparator) | key / Kempston / port / none |
 | **CV In 2** | A | key / Kempston / port / none |
-| **Audio In 1** | O · *also the tape EAR for `LOAD ""`* | key / Kempston / port / none |
+| **Audio In 1** | O | key / Kempston / port / none |
 | **Audio In 2** | P | key / Kempston / port / none |
 | **Switch Down** | ENTER | key / Kempston / port / none |
 
 **Input ports** (read with `IN A,(port)` when a source is mapped to *Port*):
 Knob Y `0x5F`, CV In 1 `0x6F`, CV In 2 `0x7F`, Audio In 1 `0x8F`, Audio In 2 `0x9F`,
 Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
-
-**Tape loading (`LOAD ""`)** — Audio In 1 doubles as the ULA EAR bit. Unmap Audio In 1
-(so it doesn't also press a key), type `LOAD ""`, and feed loud/clean tape audio in.
-LED 3 blinks when tape pulses are seen; Pulse Out 1 carries the loading screech. It's
-the "brave" path — success depends on signal level and pulse-width resolution.
 
 ## Outputs (ZX)
 
@@ -95,7 +90,7 @@ the "brave" path — success depends on signal level and pulse-width resolution.
 | **CV Out 2** | **Memory probe** — a chosen RAM byte (0–255) as 0–5 V (address set in the Web UI; default 16384 = screen memory) |
 | **Audio Out 1** | **Reverb** (beeper + AY mix), wet/dry on Knob X |
 | **Audio Out 2** | **AY-3-8912** sound |
-| **LEDs** | Left: mode (128K / 48K / AY). Right: heartbeat / correct-speed *(or tape activity)* / beeper |
+| **LEDs** | Left: mode (128K / 48K / AY). Right: heartbeat / correct-speed / beeper |
 
 ## Web UI (ZX)
 
