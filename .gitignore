@@ -18,3 +18,4 @@ snapshots/*.sna
 # clone builds something real. snapshot_data.h is still generated from it.
 !snapshots/bakedasm.z80
 FLASHME/*.bin
+FLASHME/*.tap
