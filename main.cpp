@@ -83,9 +83,11 @@ public:
 			bool nowPaused = gSpectrum.xc.paused;
 			if (wasPaused && !nowPaused && gWebUI.SnapshotReady())
 			{
-				// Leaving pause with a freshly uploaded image -> clean start.
-				gMachine.Reset();
-				LoadSnapshot(gMachine, gWebUI.SnapshotData(), gWebUI.SnapshotLen());
+				// Leaving pause with a freshly uploaded snapshot. The browser has
+				// already decoded it: RAM banks were written directly as pages
+				// arrived, so we just apply the register/paging state. (No Reset()
+				// — that would wipe the RAM the browser just filled.)
+				gWebUI.ApplyDecoded(&gMachine);
 				gWebUI.ClearSnapshot();
 				lastSample = gSpectrum.xc.sampleCount;
 				wasPaused = false;

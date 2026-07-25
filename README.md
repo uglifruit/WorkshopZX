@@ -99,12 +99,17 @@ Done:
 - [x] **Snapshot loader** — `.z80` v1/v2/v3, 48K & 128K, with RLE decompression
 - [x] **Beeper → Pulse Out 1**, border → CV Out 1 + LED bar
 
+- [x] **Input mapping engine** — jacks/switch → Spectrum keyboard (held-while-high),
+      only when a jack is plugged in
+- [x] **AY-3-8912** — 3 tone channels + noise + 8 envelope shapes → Audio Out 2
+      (confirmed playing 128K game music on hardware)
+- [x] **Web UI** (USB-MIDI/SysEx) — `.z80`/`.sna` upload, QWERTY key remapper, and
+      **laptop keyboard passthrough**
+- [x] **Snapshot loader** — `.z80` (v1/v2/v3) and `.sna` (48K/128K)
+
 Next:
-- [ ] **Input mapping engine** — jacks/switch → keyboard matrix / Kempston (so the
-      machine can be driven, and menu/BASIC/keypress sounds play)
-- [ ] **AY-3-8912** — 3 square channels + noise + envelopes → Audio Out 2
+- [ ] **Kempston joystick** target for the mapping engine
 - [ ] **Multiple baked snapshots** selectable by Knob X
-- [ ] **Web UI** — snapshot upload + clickable-keyboard input mapper (USB SysEx)
 - [ ] **Contended memory timing** — optional, for games that depend on it
 - [ ] **Tape-EAR loader** — `LOAD ""` from Audio In *(stretch goal)*
 

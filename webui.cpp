@@ -1,6 +1,7 @@
 // webui.cpp — USB-MIDI/SysEx Web UI transport + protocol implementation.
 
 #include "webui.h"
+#include "machine.h"   // Machine + z80 (for ApplyDecoded)
 #include "tusb.h"
 #include <cstdlib>
 #include <cstring>
@@ -70,12 +71,48 @@ void WebUI::Init(Spectrum *spec, Mapper *mapper)
 {
 	spec_ = spec;
 	mapper_ = mapper;
-	// staging_ is a static array now — no malloc (a 140KB malloc exceeded free
-	// RAM and wedged core 1).
+	// No large staging buffer: the browser decodes snapshots and streams raw RAM
+	// pages that we write straight into spec->mem.ram, plus a tiny state block.
 	msgLen_ = 0;
 	inSysex_ = false;
 	snapReady_ = false;
 	tusb_init();
+}
+
+// Apply the browser-decoded machine state to the CPU. RAM banks were already
+// written directly by MSG_LOAD_PAGE. State block layout (little-endian words):
+//   [0] A   [1] F   [2] C [3] B   [4] E [5] D   [6] L [7] H
+//   [8] PClo [9] PChi   [10] SPlo [11] SPhi   [12] I   [13] R
+//   [14] IM&flags (bit0-1=IM, bit2=IFF1, bit3=IFF2)   [15] border
+//   [16] 0x7FFD paging   [17] is128 (1/0)
+//   [18] A' [19] F' [20] C' [21] B' [22] E' [23] D' [24] L' [25] H'
+//   [26] IXlo [27] IXhi [28] IYlo [29] IYhi
+void WebUI::ApplyDecoded(void *machinePtr)
+{
+	Machine *m = static_cast<Machine *>(machinePtr);
+	z80 *z = m->Cpu();
+	const uint8_t *s = decodedState_;
+	if (decodedStateLen_ < 30) return;
+
+	z->a = s[0];
+	auto setF = [&](uint8_t f){
+		z->sf=(f>>7)&1; z->zf=(f>>6)&1; z->yf=(f>>5)&1; z->hf=(f>>4)&1;
+		z->xf=(f>>3)&1; z->pf=(f>>2)&1; z->nf=(f>>1)&1; z->cf=f&1; };
+	setF(s[1]);
+	z->c=s[2]; z->b=s[3]; z->e=s[4]; z->d=s[5]; z->l=s[6]; z->h=s[7];
+	z->pc = s[8] | (s[9] << 8);
+	z->sp = s[10] | (s[11] << 8);
+	z->i = s[12]; z->r = s[13];
+	uint8_t imf = s[14];
+	z->interrupt_mode = imf & 3;
+	z->iff1 = (imf >> 2) & 1;
+	z->iff2 = (imf >> 3) & 1;
+	spec_->xc.border = s[15] & 7;
+	spec_->mem.SetPaging(s[16]);
+	z->a_=s[18]; z->f_=s[19]; z->c_=s[20]; z->b_=s[21];
+	z->e_=s[22]; z->d_=s[23]; z->l_=s[24]; z->h_=s[25];
+	z->ix = s[26] | (s[27] << 8);
+	z->iy = s[28] | (s[29] << 8);
 }
 
 void WebUI::Task()
@@ -132,37 +169,36 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 		break;
 	}
 
-	case MSG_SNAP_BEGIN:
+	case MSG_LOAD_BEGIN:
 	{
-		// payload: MSG_SNAP_BEGIN + 4 septets = expected length (28-bit)
-		snapLen_ = 0;
-		snapExpected_ = 0;
-		if (size >= 5)
-			snapExpected_ = uint32_t(data[1]) | (uint32_t(data[2]) << 7)
-			              | (uint32_t(data[3]) << 14) | (uint32_t(data[4]) << 21);
-		uint8_t ack[] = { MSG_SNAP_ACK, 0 };
+		// The browser has decoded the snapshot; payload after id is the machine
+		// state block (registers, border, paging, IM/IFF), 7-bit encoded.
+		decodedStateLen_ = Decode7bit(data + 1, size - 1,
+		                              decodedState_, sizeof(decodedState_));
+		snapReady_ = false;
+		uint8_t ack[] = { MSG_STATUS, 4 }; // 4 = ready for pages
 		SendSysEx(ack, sizeof(ack));
 		break;
 	}
 
-	case MSG_SNAP_CHUNK:
+	case MSG_LOAD_PAGE:
 	{
-		// payload after id is 7-bit-encoded snapshot bytes.
-		uint8_t decoded[kMsgBuf];
-		uint32_t m = Decode7bit(data + 1, size - 1, decoded, sizeof(decoded));
-		if (snapLen_ + m <= kStagingMax)
-		{
-			memcpy(staging_ + snapLen_, decoded, m);
-			snapLen_ += m;
-		}
-		uint8_t ack[] = { MSG_SNAP_ACK, uint8_t((snapLen_ >> 7) & 0x7F) };
-		SendSysEx(ack, sizeof(ack));
+		// payload: id, bank(0..7), offsetHi, offsetLo (in 256-byte units? no —
+		// full offset as 2 septets *128), then 7-bit-encoded raw bytes.
+		// Layout: data[1]=bank, data[2..3]=offset (14-bit, 2 septets), data[4..]=enc.
+		if (size < 4) break;
+		uint8_t bank = data[1] & 0x07;
+		uint32_t offset = (uint32_t(data[2]) << 7) | uint32_t(data[3]);
+		uint8_t raw[kMsgBuf];
+		uint32_t n = Decode7bit(data + 4, size - 4, raw, sizeof(raw));
+		if (offset + n <= 0x4000)                 // stay within the 16KB bank
+			memcpy(&spec_->mem.ram[bank][offset], raw, n);
 		break;
 	}
 
-	case MSG_SNAP_END:
+	case MSG_LOAD_END:
 	{
-		snapReady_ = true;   // emulation loop will pick this up and load it
+		snapReady_ = true;   // apply state on the pause->run transition
 		uint8_t st[] = { MSG_STATUS, 1 }; // 1 = loaded
 		SendSysEx(st, sizeof(st));
 		break;

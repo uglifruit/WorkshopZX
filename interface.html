@@ -110,9 +110,9 @@
 <script>
 // ---- protocol (must match webui.h) ----------------------------------------
 const MANUF = 0x7D;
-const MSG = { HELLO:0x01, INFO:0x02, SNAP_BEGIN:0x10, SNAP_CHUNK:0x11, SNAP_END:0x12,
-              SNAP_ACK:0x13, MAP_GET:0x20, MAP_REPORT:0x21, MAP_SET:0x22,
-              KEY:0x40, KEY_RESET:0x41, STATUS:0x30 };
+const MSG = { HELLO:0x01, INFO:0x02, MAP_GET:0x20, MAP_REPORT:0x21, MAP_SET:0x22,
+              KEY:0x40, KEY_RESET:0x41,
+              LOAD_BEGIN:0x50, LOAD_PAGE:0x51, LOAD_END:0x52, STATUS:0x30 };
 
 // Spectrum matrix order (must match kKeyTable in spectrum.cpp). This defines the
 // INDEX (0..39) each key maps to — the value the firmware expects.
@@ -214,32 +214,149 @@ function onMidi(ev){
   } else if(id===MSG.STATUS){
     document.getElementById('uploadStatus').textContent =
       p[1]===1 ? "Snapshot loaded — flick switch to Middle to run." :
-      p[1]===2 ? "Mapping updated." : "Status "+p[1];
+      p[1]===2 ? "Mapping updated." :
+      p[1]===4 ? "Sending RAM…" :
+      "Status "+p[1];
   }
 }
 
-// ---- snapshot upload -----------------------------------------------------
+// ---- snapshot decode (in the BROWSER) ------------------------------------
+// Parse a .z80 (v1/v2/v3) or .sna (48K/128K) into { state[30 bytes], ram: 8x
+// Uint8Array(16384) } — the firmware then just stores it (no parsing on the MCU).
+// state layout matches ApplyDecoded() in webui.cpp.
+
+function rleDecompress(src, si, end, dst, dstMax){
+  let di=0;
+  while(si<end && di<dstMax){
+    if(si+3<end && src[si]===0xED && src[si+1]===0xED){
+      let count=src[si+2], val=src[si+3]; si+=4;
+      for(let k=0;k<count && di<dstMax;k++) dst[di++]=val;
+    } else dst[di++]=src[si++];
+  }
+  return di;
+}
+function makeState(){ return new Uint8Array(30); }
+function emptyRam(){ return [0,1,2,3,4,5,6,7].map(()=>new Uint8Array(16384)); }
+
+function parseZ80(d){
+  const st = makeState(); const ram = emptyRam();
+  const pc1 = d[6] | (d[7]<<8);
+  // common v1 registers
+  st[0]=d[0]; st[1]=d[1]; st[2]=d[2]; st[3]=d[3]; st[4]=d[13]; st[5]=d[14];
+  st[6]=d[4]; st[7]=d[5]; st[10]=d[8]; st[11]=d[9]; st[12]=d[10];
+  st[13]=(d[11]&0x7F)|((d[12]&1)<<7);
+  const byte12 = d[12]===255?1:d[12];
+  st[15] = (byte12>>1)&7; // border
+  st[14] = (d[29]&3) | ((d[27]?1:0)<<2) | ((d[28]?1:0)<<3); // IM + IFF1/2
+  st[18]=d[21]; st[19]=d[22]; st[20]=d[15]; st[21]=d[16];
+  st[22]=d[17]; st[23]=d[18]; st[24]=d[19]; st[25]=d[20];
+  st[26]=d[25]; st[27]=d[26]; st[28]=d[23]; st[29]=d[24];
+
+  function put48(flat){ // flat = 48KB at 0x4000..: banks 5,2,0
+    ram[5].set(flat.subarray(0,16384));
+    ram[2].set(flat.subarray(16384,32768));
+    ram[0].set(flat.subarray(32768,49152));
+  }
+
+  if(pc1!==0){
+    // v1: 48K, PC in header, single (maybe compressed) 48KB block from offset 30
+    st[8]=d[6]; st[9]=d[7]; st[16]=0x10; st[17]=0;
+    const flat=new Uint8Array(49152);
+    if(byte12 & 0x20) rleDecompress(d,30,d.length,flat,49152);
+    else flat.set(d.subarray(30, Math.min(d.length,30+49152)));
+    put48(flat);
+    return {st,ram,is128:false};
+  }
+  // v2/v3
+  const extLen = d[30]|(d[31]<<8);
+  const hdrEnd = 32+extLen;
+  st[8]=d[32]; st[9]=d[33];
+  const hw=d[34];
+  const is128 = (extLen===23)? hw>=3 : hw>=4;
+  st[16] = is128 ? d[35] : 0x10; st[17]= is128?1:0;
+  let off=hdrEnd;
+  while(off+3<=d.length){
+    const blen=d[off]|(d[off+1]<<8); const page=d[off+2]; off+=3;
+    const uncompressed = blen===0xFFFF; const dl = uncompressed?0x4000:blen;
+    const tmp=new Uint8Array(16384);
+    if(uncompressed) tmp.set(d.subarray(off,off+0x4000));
+    else rleDecompress(d,off,off+dl,tmp,16384);
+    off+=dl;
+    // page->bank
+    let bank=-1;
+    if(is128){ if(page>=3&&page<=10) bank=page-3; }
+    else { if(page===8)bank=5; else if(page===4)bank=2; else if(page===5)bank=0; }
+    if(bank>=0&&bank<8) ram[bank].set(tmp);
+  }
+  return {st,ram,is128};
+}
+
+function parseSNA(d){
+  const st=makeState(); const ram=emptyRam();
+  st[12]=d[0]; st[24]=d[1]; st[25]=d[2]; st[22]=d[3]; st[23]=d[4];
+  st[20]=d[5]; st[21]=d[6]; st[19]=d[7]; st[18]=d[8];
+  st[6]=d[9]; st[7]=d[10]; st[4]=d[11]; st[5]=d[12]; st[2]=d[13]; st[3]=d[14];
+  st[28]=d[15]; st[29]=d[16]; st[26]=d[17]; st[27]=d[18];
+  const iff2=(d[19]&0x04)?1:0;
+  st[13]=d[20]; st[1]=d[21]; st[0]=d[22];
+  st[10]=d[23]; st[11]=d[24]; st[14]=(d[25]&3)|(iff2<<2)|(iff2<<3); st[15]=d[26]&7;
+  st[16]=0x10; st[17]=0;
+  const flat=d.subarray(27,27+49152);
+  ram[5].set(flat.subarray(0,16384));
+  ram[2].set(flat.subarray(16384,32768));
+  ram[0].set(flat.subarray(32768,49152));
+  if(d.length>=27+49152+4){
+    // 128K tail: PC(2), 0x7FFD(1), TRDOS(1), then extra banks
+    const t=27+49152;
+    st[8]=d[t]; st[9]=d[t+1]; st[16]=d[t+2]; st[17]=1;
+    let bi=t+4; const pagedIn=d[t+2]&7;
+    for(let page=0;page<8 && bi+16384<=d.length;page++){
+      if(page===5||page===2||page===pagedIn) continue;
+      ram[page].set(d.subarray(bi,bi+16384)); bi+=16384;
+    }
+  } else {
+    // 48K: PC popped from stack
+    const sp=st[10]|(st[11]<<8);
+    const addr=sp-0x4000;
+    const lo=flat[addr], hi=flat[addr+1];
+    st[8]=lo; st[9]=hi;
+    const nsp=(sp+2)&0xFFFF; st[10]=nsp&0xFF; st[11]=nsp>>8;
+  }
+  return {st,ram,is128:d.length>27+49152};
+}
+
 document.getElementById('fileInput').onchange = e => {
   document.getElementById('uploadBtn').disabled = !(e.target.files.length && midiOut);
 };
 document.getElementById('uploadBtn').onclick = async () => {
   const f = document.getElementById('fileInput').files[0]; if(!f) return;
-  const buf = new Uint8Array(await f.arrayBuffer());
-  const prog = document.getElementById('prog'); prog.style.display='block'; prog.max=buf.length; prog.value=0;
-  // BEGIN with length as 4 septets (28-bit)
-  const L=buf.length;
-  sendSysex([MSG.SNAP_BEGIN, L&0x7F, (L>>7)&0x7F, (L>>14)&0x7F, (L>>21)&0x7F]);
-  // chunk: ~35 raw bytes -> 40 encoded, safely under the 64-byte MIDI FIFO
+  const d = new Uint8Array(await f.arrayBuffer());
+  const isSNA = /\.sna$/i.test(f.name) || d.length===49179 || d.length===131103 || d.length===147499;
+  let parsed;
+  try { parsed = isSNA ? parseSNA(d) : parseZ80(d); }
+  catch(err){ document.getElementById('uploadStatus').textContent = "Parse error: "+err.message; return; }
+
+  const prog = document.getElementById('prog'); prog.style.display='block';
+  const totalBytes = parsed.ram.length*16384; let sent=0; prog.max=totalBytes; prog.value=0;
+  document.getElementById('uploadStatus').textContent = "Decoded in browser — sending…";
+
+  // 1) state block
+  sendSysex([MSG.LOAD_BEGIN, ...encode7(parsed.st)]);
+  await new Promise(r=>setTimeout(r,4));
+
+  // 2) RAM pages, chunked (35 raw bytes/chunk -> under the 64-byte MIDI FIFO)
   const CHUNK=35;
-  for(let i=0;i<buf.length;i+=CHUNK){
-    const slice = buf.slice(i, i+CHUNK);
-    sendSysex([MSG.SNAP_CHUNK, ...encode7(slice)]);
-    prog.value = i+CHUNK;
-    await new Promise(r=>setTimeout(r,3)); // let the FIFO drain
+  for(let bank=0;bank<8;bank++){
+    const page=parsed.ram[bank];
+    for(let off=0;off<16384;off+=CHUNK){
+      const slice=page.subarray(off, Math.min(off+CHUNK,16384));
+      sendSysex([MSG.LOAD_PAGE, bank, (off>>7)&0x7F, off&0x7F, ...encode7(slice)]);
+      sent+=slice.length; prog.value=sent;
+      if((off & 0x3FF)===0) await new Promise(r=>setTimeout(r,1)); // periodic drain
+    }
   }
-  sendSysex([MSG.SNAP_END]);
-  prog.value = buf.length;
-  document.getElementById('uploadStatus').textContent = "Upload complete — flick switch to Middle to run.";
+  sendSysex([MSG.LOAD_END]);
+  document.getElementById('uploadStatus').textContent = "Sent — flick switch to Middle to run.";
 };
 
 // ---- mapping UI ----------------------------------------------------------

@@ -32,6 +32,12 @@ enum : uint8_t {
 	MSG_MAP_SET       = 0x22, // ui->fw: set the mapping table
 	MSG_KEY           = 0x40, // ui->fw: keyboard passthrough. payload: keyIndex,down
 	MSG_KEY_RESET     = 0x41, // ui->fw: release all passthrough keys
+	// Decoded-snapshot load: the BROWSER parses/decompresses the .z80/.sna and
+	// sends already-decoded state, so the firmware just stores it (no staging /
+	// decompression / RAM pressure on the RP2040).
+	MSG_LOAD_BEGIN    = 0x50, // ui->fw: start; payload = decoded register/state block
+	MSG_LOAD_PAGE     = 0x51, // ui->fw: page# + offset + 7bit-encoded raw bytes -> bank
+	MSG_LOAD_END      = 0x52, // ui->fw: done -> apply on resume
 	MSG_STATUS        = 0x30, // fw->ui: running/paused, current activity
 };
 
@@ -50,12 +56,14 @@ public:
 	void Init(Spectrum *spec, Mapper *mapper);  // call once on core 1
 	void Task();                                // call frequently on core 1
 
-	// True when a complete snapshot has arrived and is waiting to be loaded.
-	// The emulation loop checks this, loads gStagingSnapshot, and clears it.
+	// True when a complete decoded snapshot has arrived. The emulation loop, on
+	// the pause->run transition, calls ApplyDecoded(machine) then ClearSnapshot().
 	bool SnapshotReady() const { return snapReady_; }
-	const uint8_t *SnapshotData() const { return staging_; }
-	uint32_t SnapshotLen() const { return snapLen_; }
 	void ClearSnapshot() { snapReady_ = false; }
+	// Apply the browser-decoded state (registers + border + paging) to the CPU.
+	// RAM banks were written directly as pages arrived, so this just sets state.
+	// Takes a Machine* as void* to avoid a header dependency cycle.
+	void ApplyDecoded(void *machinePtr);
 
 private:
 	void SendSysEx(const uint8_t *data, uint32_t size);
@@ -72,13 +80,12 @@ private:
 	uint32_t msgLen_ = 0;
 	bool     inSysex_ = false;
 
-	// Snapshot staging. A .z80 is COMPRESSED, so even a 128K snapshot file is
-	// well under this; 64KB is a safe cap that fits our RAM budget as a static
-	// array (no risky 140KB malloc that would exceed free RAM and wedge core 1).
-	static constexpr uint32_t kStagingMax = 64 * 1024;
-	uint8_t   staging_[kStagingMax];   // static, sized at link time
-	uint32_t  snapLen_ = 0;            // bytes received so far / final length
-	uint32_t  snapExpected_ = 0;
+	// Browser-decoded snapshot: the register/state block (the browser sends the
+	// already-parsed machine state), captured on MSG_LOAD_BEGIN. RAM banks are
+	// written directly into the Spectrum RAM as MSG_LOAD_PAGE messages arrive, so
+	// there is NO large staging buffer on the RP2040 at all.
+	uint8_t   decodedState_[32];       // regs/border/paging block from the browser
+	uint32_t  decodedStateLen_ = 0;
 	bool      snapReady_ = false;
 };
 
