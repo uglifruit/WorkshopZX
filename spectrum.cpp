@@ -97,6 +97,9 @@ void Spectrum::Reset()
 	xc.aySample = 0;
 	xc.earIn = false;
 	xc.kempston = 0;
+	xc.knobY = 0;
+	xc.probeAddr = 0x4000;   // default probe = start of screen memory (16384)
+	xc.probeVal = 0;
 	xc.sampleCount = 0;
 	xc.speedPct = 100;   // default real-time until core 0 reads Knob Main
 	xc.mode = MODE_128K; // default; load path sets 48K/AY
@@ -128,6 +131,10 @@ uint8_t Spectrum::PortRead(uint16_t port)
 	// AY register read: port 0xFFFD (A15=1, A14=1).
 	if ((port & 0xC000) == 0xC000)
 		return ay.Read(ay.selected);
+	// Knob Y peripheral: read the knob (0-255) at port 0x5F (low byte 0x5F).
+	// 0x5F is odd (not ULA), A5=1 (not Kempston), not A15/A14 (not AY) — free.
+	if ((port & 0x00FF) == 0x5F)
+		return xc.knobY;
 	// Kempston joystick at ports where A5 low (commonly 0x1F). 000FUDLR.
 	// (Checked after AY so 0xFFFD isn't misread as Kempston.)
 	if ((port & 0x0020) == 0)

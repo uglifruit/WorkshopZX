@@ -129,6 +129,11 @@ struct CrossCore
 	// (Keyboard matrix lives in Keyboard::rows, also volatile.)
 	volatile bool     earIn;       // tape EAR bit (from Audio In) — stretch
 	volatile uint8_t  kempston;    // Kempston joystick byte (port 0x1F): 000FUDLR
+	volatile uint8_t  knobY;       // Knob Y as 0-255, readable by the Z80 at port 0x5F
+
+	// --- CV2 memory probe: core 0 sets the address, core 1 samples the byte ---
+	volatile uint16_t probeAddr;   // RAM address to read (default 0x4000)
+	volatile uint8_t  probeVal;    // latest byte at probeAddr (core 1 -> core 0 CV2)
 
 	// --- time reference, written by core 0, read by core 1 for pacing ---
 	volatile uint32_t sampleCount; // ++ every 48kHz sample

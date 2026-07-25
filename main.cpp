@@ -168,6 +168,9 @@ public:
 		else                spd = uint16_t(100 + ((km - 2200) * 200) / (4095 - 2200)); // 100..300
 		gSpectrum.xc.speedPct = spd;
 
+		// Knob Y -> a Z80-readable peripheral value (0-255) at port 0x5F.
+		gSpectrum.xc.knobY = uint8_t(KnobVal(Knob::Y) >> 4);
+
 		// --- Evaluate the mapping sources from the jacks + switch --------------
 		// A jack only triggers if something is actually PLUGGED IN (normalisation
 		// probe). This stops floating/unpatched CV/Audio inputs pressing keys.
@@ -201,6 +204,12 @@ public:
 		// Border colour still drives CV Out 1 (a voltage), but no longer the LEDs.
 		uint8_t b = gSpectrum.xc.border;
 		CVOut1(int16_t((b * 2047) / 7));
+
+		// CV Out 2 = the value of a UI-selectable memory location (0-255) scaled
+		// to 0-5V. Sampled by core 1 at xc.probeAddr (default 16384 = screen mem,
+		// so it flickers with the display). CVOut range -2048..2047 ≈ -6..+6V, so
+		// 0-5V is 0..~1706. probeVal 0..255 -> 0..1706.
+		CVOut2(int16_t((gSpectrum.xc.probeVal * 1706) / 255));
 
 		// --- LED layout ------------------------------------------------------
 		// Left column = machine mode (one lit):

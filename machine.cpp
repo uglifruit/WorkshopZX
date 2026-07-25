@@ -90,6 +90,10 @@ void Machine::Run(uint32_t tstates)
 	// mixed sample for core 0 to send to Audio Out 2. A batch is ~one 48kHz
 	// sample of emulated time, so this produces AY audio at ~48kHz.
 	spec_->xc.aySample = spec_->ay.Render(tstates);
+
+	// Sample the CV2 memory-probe byte here (core 1 owns the memory), for core 0
+	// to output on CV2. Reading via MemRead honours the current paging.
+	spec_->xc.probeVal = spec_->MemRead(spec_->xc.probeAddr);
 }
 
 } // namespace zx

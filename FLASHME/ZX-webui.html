@@ -94,6 +94,15 @@
   </div>
 
   <div class="panel">
+    <h2>CV Out 2 — memory probe</h2>
+    <div class="row">
+      <label>Address <input type="number" id="probeAddr" min="0" max="65535" value="16384" style="width:8em"></label>
+      <button id="probeBtn" disabled>Send</button>
+      <span class="hint">Outputs RAM[address] (0–255) as 0–5V on CV Out 2. Default 16384 = screen memory (flickers with the display). Try a game variable for a live CV.</span>
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>Keyboard passthrough</h2>
     <div class="row">
       <label class="row" style="gap:8px; cursor:pointer">
@@ -111,7 +120,7 @@
 // ---- protocol (must match webui.h) ----------------------------------------
 const MANUF = 0x7D;
 const MSG = { HELLO:0x01, INFO:0x02, MAP_GET:0x20, MAP_REPORT:0x21, MAP_SET:0x22,
-              KEY:0x40, KEY_RESET:0x41,
+              KEY:0x40, KEY_RESET:0x41, SET_PROBE:0x60,
               LOAD_BEGIN:0x50, LOAD_PAGE:0x51, LOAD_END:0x52, STATUS:0x30 };
 
 // Spectrum matrix order (must match kKeyTable in spectrum.cpp). This defines the
@@ -143,10 +152,14 @@ const QWERTY = [
 
 // Input sources, matching enum Source in mapping.h.
 const SOURCES = ["Pulse In 1","Pulse In 2","CV In 1","CV In 2","Audio In 1","Audio In 2","Switch Down"];
-const TGT_KEY = 1;
+const TGT_NONE = 0, TGT_KEY = 1, TGT_KEMPSTON = 2;
+// Kempston bits (port 0x1F: 000FUDLR), matching mapping.h.
+const KEMP = { RIGHT:0x01, LEFT:0x02, DOWN:0x04, UP:0x08, FIRE:0x10 };
+const KEMP_LABEL = { 0x08:"K:Up", 0x04:"K:Down", 0x02:"K:Left", 0x01:"K:Right", 0x10:"K:Fire" };
 
 let midiOut = null, midiIn = null;
-let mapping = SOURCES.map(()=>({kind:TGT_KEY, key:KEY_NONE})); // current UI mapping
+// mapping[s] = {kind, key, kemp}. key = matrix index (TGT_KEY); kemp = bitmask (TGT_KEMPSTON).
+let mapping = SOURCES.map(()=>({kind:TGT_KEY, key:KEY_NONE, kemp:0}));
 let pickingSource = null;
 
 // ---- 7-bit encode (matches Encode7bit) ------------------------------------
@@ -180,7 +193,7 @@ document.getElementById('connectBtn').onclick = async () => {
     if(midiIn) midiIn.onmidimessage = onMidi;
     if(midiOut){
       setStatus(true, "CONNECTED — "+midiOut.name);
-      ['getMapBtn','setMapBtn'].forEach(id=>document.getElementById(id).disabled=false);
+      ['getMapBtn','setMapBtn','probeBtn'].forEach(id=>document.getElementById(id).disabled=false);
       sendSysex([MSG.HELLO]);
       sendSysex([MSG.MAP_GET]);
     } else setStatus(false,"No card found — is it plugged in?");
@@ -208,7 +221,10 @@ function onMidi(ev){
     const count = p[1];
     for(let s=0;s<count;s++){
       const base = 2+s*3;
-      mapping[s] = { kind:p[base], key:p[base+1] };
+      { const kind=p[base], arg=p[base+1];
+        mapping[s] = (kind===TGT_KEMPSTON)
+          ? { kind, key:KEY_NONE, kemp:arg }
+          : { kind, key:arg, kemp:0 }; }
     }
     renderMapping(); renderKeyboard();   // refresh QWERTY highlights too
   } else if(id===MSG.STATUS){
@@ -360,12 +376,16 @@ document.getElementById('uploadBtn').onclick = async () => {
 };
 
 // ---- mapping UI ----------------------------------------------------------
+function mapLabel(m){
+  if(m.kind===TGT_KEMPSTON) return KEMP_LABEL[m.kemp] || 'K:?';
+  if(m.kind===TGT_KEY && m.key!==KEY_NONE) return KEYLABELS[m.key];
+  return '—';
+}
 function renderMapping(){
   const tb = document.querySelector('#mapTable tbody'); tb.innerHTML='';
   SOURCES.forEach((name,s)=>{
     const tr=document.createElement('tr');
-    const keyLabel = mapping[s].key===KEY_NONE ? '—' : KEYLABELS[mapping[s].key];
-    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${keyLabel}</span></td>`;
+    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${mapLabel(mapping[s])}</span></td>`;
     tr.querySelector('.srckey').onclick = ()=>{ pickingSource=s; highlightPicking(); };
     tb.appendChild(tr);
   });
@@ -381,23 +401,42 @@ function renderKeyboard(){
     row.forEach(label=>{
       const myIdx = IDX[label];               // resolve QWERTY label -> matrix index
       const k=document.createElement('div'); k.className='key'; k.textContent=label;
-      if(mapping.some(m=>m.key===myIdx)) k.classList.add('assigned');
+      if(mapping.some(m=>m.kind===TGT_KEY && m.key===myIdx)) k.classList.add('assigned');
       k.onclick=()=>{
         if(pickingSource===null) return;      // pick a source first
-        mapping[pickingSource]={kind:TGT_KEY, key:myIdx};
+        mapping[pickingSource]={kind:TGT_KEY, key:myIdx, kemp:0};
         pickingSource=null; renderMapping(); renderKeyboard();
       };
       div.appendChild(k);
     });
     kb.appendChild(div);
   });
+  // Kempston joystick target row.
+  const jrow=document.createElement('div'); jrow.className='kbrow'; jrow.style.marginTop='8px';
+  [["Up",KEMP.UP],["Down",KEMP.DOWN],["Left",KEMP.LEFT],["Right",KEMP.RIGHT],["Fire",KEMP.FIRE]].forEach(([lbl,bit])=>{
+    const k=document.createElement('div'); k.className='key'; k.textContent='⤨'+lbl;
+    k.style.background='#3a2a50';
+    if(mapping.some(m=>m.kind===TGT_KEMPSTON && m.kemp===bit)) k.classList.add('assigned');
+    k.onclick=()=>{
+      if(pickingSource===null) return;
+      mapping[pickingSource]={kind:TGT_KEMPSTON, key:KEY_NONE, kemp:bit};
+      pickingSource=null; renderMapping(); renderKeyboard();
+    };
+    jrow.appendChild(k);
+  });
+  kb.appendChild(jrow);
 }
+document.getElementById('probeBtn').onclick = ()=>{
+  const a = (parseInt(document.getElementById('probeAddr').value)||0) & 0xFFFF;
+  sendSysex([MSG.SET_PROBE, a&0x7F, (a>>7)&0x7F, (a>>14)&0x7F]);
+};
 document.getElementById('getMapBtn').onclick = ()=> sendSysex([MSG.MAP_GET]);
 document.getElementById('setMapBtn').onclick = ()=>{
   const payload=[MSG.MAP_SET, SOURCES.length];
   mapping.forEach(m=>{
-    const key = m.key===KEY_NONE ? KEY_NONE&0x7F : m.key;
-    payload.push(m.kind & 0x7F, key & 0x7F, 0x00); // threshold coarse=0 for keys
+    // arg = matrix key index (TGT_KEY) or Kempston bitmask (TGT_KEMPSTON).
+    const arg = (m.kind===TGT_KEMPSTON) ? m.kemp : (m.key===KEY_NONE ? KEY_NONE : m.key);
+    payload.push(m.kind & 0x7F, arg & 0x7F, 0x00); // threshold coarse=0
   });
   sendSysex(payload);
 };

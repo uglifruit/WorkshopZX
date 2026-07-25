@@ -32,6 +32,7 @@ enum : uint8_t {
 	MSG_MAP_SET       = 0x22, // ui->fw: set the mapping table
 	MSG_KEY           = 0x40, // ui->fw: keyboard passthrough. payload: keyIndex,down
 	MSG_KEY_RESET     = 0x41, // ui->fw: release all passthrough keys
+	MSG_SET_PROBE     = 0x60, // ui->fw: CV2 memory-probe address (3 septets = 16-bit)
 	// Decoded-snapshot load: the BROWSER parses/decompresses the .z80/.sna and
 	// sends already-decoded state, so the firmware just stores it (no staging /
 	// decompression / RAM pressure on the RP2040).

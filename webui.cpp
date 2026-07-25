@@ -253,6 +253,12 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 		mapper_->PassthroughReset();
 		break;
 
+	case MSG_SET_PROBE:
+		// payload: id + 3 septets = 16-bit CV2 memory-probe address.
+		if (size >= 4)
+			spec_->xc.probeAddr = uint16_t(data[1] | (data[2] << 7) | (data[3] << 14));
+		break;
+
 	default: break;
 	}
 }
