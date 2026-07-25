@@ -640,11 +640,13 @@ public:
 		// --- LEDs: engine (left column bar 0..5) + decay/kit/drum --------
 		if ((sampleCount++ & 0x1FF) == 0)
 		{
-			// Left column: engine 0..6 as a 3-LED brightness bar (thirds).
-			LedBrightness(0, uint16_t((engine + 1) * 4095 / EngCount));
-			LedBrightness(2, engine >= (EngCount / 3)     ? 4095 : 0);
-			LedBrightness(4, engine >= (2 * EngCount / 3) ? 4095 : 0);
-			// Right column: note-decay glow, kit, drum activity.
+			// Left column = engine number in BINARY (0..6):
+			//   LED 0 = bit 0, LED 2 = bit 1, LED 4 = bit 2.
+			int e = int(engine);
+			LedOn(0, e & 1);
+			LedOn(2, e & 2);
+			LedOn(4, e & 4);
+			// Right column: note-decay glow (1), drum kit (3), drum activity (5).
 			LedBrightness(1, uint16_t(noteEnv));
 			LedBrightness(3, uint16_t(kitIdx * 1200));
 			LedBrightness(5, drumActive ? 4095 : 0);
