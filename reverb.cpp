@@ -43,7 +43,7 @@ int16_t Reverb::Process(int16_t in)
 	int32_t input = in >> 2;   // attenuate into the reverb network (headroom)
 	int32_t out = 0;
 
-	// Parallel comb filters with a damping lowpass in the feedback path.
+	// 8 parallel comb filters, each with a damping lowpass in the feedback path.
 	for (int c = 0; c < kNumCombs; c++)
 	{
 		int len = kCombLen[c];
@@ -52,15 +52,14 @@ int16_t Reverb::Process(int16_t in)
 		// Damping lowpass on the feedback: store = y*damp2 + store*damp1 (Q15).
 		combStore_[c] = (y * kDamp2 + combStore_[c] * kDamp1) >> 15;
 		int32_t v = input + ((combStore_[c] * kFeedback) >> 15);
-		// Soft safety clamp well inside int16 (headroom preserved by the >>2).
 		if (v > 8191) v = 8191; else if (v < -8192) v = -8192;
 		comb_[c][combIdx_[c]] = int16_t(v);
 		if (++combIdx_[c] >= len) combIdx_[c] = 0;
 	}
-	out >>= 2;   // average the 4 combs
+	out >>= 3;   // average the 8 combs
 
-	// Series allpass filters. Standard Schroeder allpass:
-	//   bufout = buf;  out = -in + buf;  buf = in + buf*g
+	// 4 series allpass filters (more diffusion -> less metallic).
+	//   out = buf - in;  buf = in + buf*g
 	for (int a = 0; a < kNumAllpass; a++)
 	{
 		int len = kAllpassLen[a];
@@ -73,9 +72,10 @@ int16_t Reverb::Process(int16_t in)
 		out = y;
 	}
 
-	// Scale back up (×2, not ×4 — the reverb network sums energy, so net-attenuate
-	// to leave the wet signal below the clip point and keep it clean).
-	out <<= 1;
+	// Output level: halve again so even a loud sustained source can't push the
+	// wet signal into the ±2047 clip (that clip was the "grit above 50%"). Net
+	// reverb gain ≈ ÷8 vs input — plenty audible, always clean.
+	out >>= 1;
 	if (out > 2047) out = 2047; else if (out < -2048) out = -2048;
 	return int16_t(out);
 }

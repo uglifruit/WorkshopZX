@@ -25,16 +25,19 @@ public:
 
 private:
 	// Comb filter tunings (samples). Freeverb's 44.1kHz values scaled ~*48/44.1.
-	static constexpr int kNumCombs = 4;
-	static constexpr int kNumAllpass = 2;
-	static constexpr int kCombLen[kNumCombs]    = { 1687, 1751, 1615, 1539 };
-	static constexpr int kAllpassLen[kNumAllpass] = { 245, 605 };
+	// Full Freeverb topology: 8 comb + 4 allpass for proper echo density (fewer
+	// lines sound metallic). 44.1kHz Freeverb tunings scaled ~*48/44.1.
+	static constexpr int kNumCombs = 8;
+	static constexpr int kNumAllpass = 4;
+	static constexpr int kCombLen[kNumCombs] =
+		{ 1244, 1301, 1362, 1414, 1476, 1522, 1580, 1640 };
+	static constexpr int kAllpassLen[kNumAllpass] = { 601, 489, 375, 245 };
 
-	int16_t comb_[kNumCombs][1751];      // sized to the largest comb
+	int16_t comb_[kNumCombs][1640];      // sized to the largest comb
 	int32_t combStore_[kNumCombs];       // damping lowpass state
 	int     combIdx_[kNumCombs];
 
-	int16_t allpass_[kNumAllpass][605];  // sized to the largest allpass
+	int16_t allpass_[kNumAllpass][601];  // sized to the largest allpass
 	int     apIdx_[kNumAllpass];
 };
 
