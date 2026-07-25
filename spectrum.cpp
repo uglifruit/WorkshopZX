@@ -98,6 +98,7 @@ void Spectrum::Reset()
 	xc.earIn = false;
 	xc.kempston = 0;
 	xc.sampleCount = 0;
+	xc.speedPct = 100;   // default real-time until core 0 reads Knob Main
 	frameTStates = 0;
 	intPending = false;
 }

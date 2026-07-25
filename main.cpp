@@ -130,7 +130,11 @@ public:
 			if (elapsed >= gSpectrum.xc.maxElapsed) gSpectrum.xc.maxElapsed = elapsed;
 			if (elapsed > 96) elapsed = 96;
 
-			gMachine.Run(elapsed * tStatesPerSample);
+			// Scale the batch by the Knob Main speed setting (100 = real time).
+			// Speed changes emulated pitch on 1-bit material, which is the point;
+			// a centre deadzone (set on core 0) holds exactly 100% when wanted.
+			uint32_t spd = gSpectrum.xc.speedPct;
+			gMachine.Run((elapsed * tStatesPerSample * spd) / 100);
 
 			// Publish a heartbeat + paging state for core 0 to show on LEDs.
 			// (LED hardware is driven only from core 0 to avoid contention.)
@@ -149,6 +153,17 @@ public:
 		//   Down   -> a mappable KEYPRESS source (held while down)
 		Switch sw = SwitchVal();
 		gSpectrum.xc.paused = (sw == Switch::Up);
+
+		// --- Knob Main -> emulation speed, with a centre deadzone at 100% ------
+		// Knob 0..4095. A flat band around centre (1900..2200) = exactly 100%
+		// (so 1-bit pitch is stable when you want it). Below centre slows down to
+		// ~25%; above speeds up to ~300%. Speed shifts emulated pitch — intended.
+		int32_t km = KnobVal(Knob::Main);
+		uint16_t spd;
+		if (km >= 1900 && km <= 2200)      spd = 100;               // deadzone
+		else if (km < 1900) spd = uint16_t(25 + (km * 75) / 1900);  // 25..100
+		else                spd = uint16_t(100 + ((km - 2200) * 200) / (4095 - 2200)); // 100..300
+		gSpectrum.xc.speedPct = spd;
 
 		// --- Evaluate the mapping sources from the jacks + switch --------------
 		// A jack only triggers if something is actually PLUGGED IN (normalisation

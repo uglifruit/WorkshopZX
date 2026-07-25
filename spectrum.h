@@ -136,6 +136,8 @@ struct CrossCore
 	// --- control, written by core 0, consumed by core 1 ---
 	volatile bool resetRequest;    // request snapshot reload (currently unbound)
 	volatile bool paused;          // core 0 sets when Switch == Up (freeze)
+	volatile uint16_t speedPct;    // emulation speed %, set from Knob Main. 100 =
+	                               // real time (a centre deadzone holds exactly 100).
 
 	// --- diagnostics, written by core 1, read by core 0 for LED heartbeat ---
 	volatile uint32_t emuAlive;    // ++ each core-1 emulation batch (proves it runs)
