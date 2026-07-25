@@ -221,7 +221,8 @@ This card stands on a lot of other people's work. Thank you, all of you.
   tutorials and community.
 
 **This card**
-- ZX + OneBit for the Workshop Computer — **Andy Jenkinson** (**uglifruit**), 2026.
+- ZX + OneBit for the Workshop Computer — **Andy Jenkinson** (**uglifruit**), 2026,
+  with **Claude Code** (Anthropic).
 
 ## Licence
 
