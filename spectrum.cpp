@@ -2,6 +2,7 @@
 // matrix read, and AY port routing. This is the "bus" the Z80 core drives.
 
 #include "spectrum.h"
+#include "mapping.h"    // kSourcePort / SRC_COUNT for the TGT_PORT input ports
 #include "rom128_0.h"   // rom128_0[]  — 128K editor ROM (bank 0)
 #include "rom128_1.h"   // rom128_1[]  — 48 BASIC ROM   (bank 1)
 
@@ -98,6 +99,7 @@ void Spectrum::Reset()
 	xc.earIn = false;
 	xc.kempston = 0;
 	xc.knobY = 0;
+	for (int i = 0; i < 8; i++) xc.portVal[i] = 0;
 	xc.probeAddr = 0x4000;   // default probe = start of screen memory (16384)
 	xc.probeVal = 0;
 	xc.sampleCount = 0;
@@ -135,6 +137,13 @@ uint8_t Spectrum::PortRead(uint16_t port)
 	// 0x5F is odd (not ULA), A5=1 (not Kempston), not A15/A14 (not AY) — free.
 	if ((port & 0x00FF) == 0x5F)
 		return xc.knobY;
+	// Per-source input ports (TGT_PORT): a CV/Audio/etc. value at its fixed port.
+	{
+		uint8_t low = port & 0x00FF;
+		for (int s = 0; s < SRC_COUNT; s++)
+			if (low == kSourcePort[s])
+				return xc.portVal[s];
+	}
 	// Kempston joystick at ports where A5 low (commonly 0x1F). 000FUDLR.
 	// (Checked after AY so 0xFFFD isn't misread as Kempston.)
 	if ((port & 0x0020) == 0)

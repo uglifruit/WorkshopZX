@@ -28,7 +28,7 @@ void Mapper::LoadDefaults()
 	table_[SRC_SWITCH] = { TGT_KEY, KEY_ENTER, 0, false };
 }
 
-void Mapper::Apply(const bool srcActive[SRC_COUNT], Spectrum &spec)
+void Mapper::Apply(const bool srcActive[SRC_COUNT], const uint8_t srcValue[SRC_COUNT], Spectrum &spec)
 {
 	// Rebuild the keyboard matrix from "all up" each sample, then press the keys
 	// whose sources are active. (Rebuilding avoids stuck keys.)
@@ -39,6 +39,15 @@ void Mapper::Apply(const bool srcActive[SRC_COUNT], Spectrum &spec)
 	{
 		const Mapping &m = table_[s];
 		if (m.kind == TGT_NONE) continue;
+
+		// TGT_PORT is a continuous value (not a gate): publish the source's 0-255
+		// value to its fixed Z80 port, ignoring active/threshold.
+		if (m.kind == TGT_PORT)
+		{
+			spec.xc.portVal[s] = srcValue[s];
+			continue;
+		}
+
 		bool active = srcActive[s] ^ m.invert;
 		if (!active) continue;
 

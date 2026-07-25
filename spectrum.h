@@ -130,6 +130,10 @@ struct CrossCore
 	volatile bool     earIn;       // tape EAR bit (from Audio In) — stretch
 	volatile uint8_t  kempston;    // Kempston joystick byte (port 0x1F): 000FUDLR
 	volatile uint8_t  knobY;       // Knob Y as 0-255, readable by the Z80 at port 0x5F
+	// Per-source input values (0-255) exposed to the Z80 at fixed ports when a
+	// source is mapped to TGT_PORT. Index = Source; 0xFF low-byte port per source
+	// (see kSourcePort in mapping.h). Written by core 0, read by core 1 PortRead.
+	volatile uint8_t  portVal[8];  // SRC_COUNT entries (pad to 8)
 
 	// --- CV2 memory probe: core 0 sets the address, core 1 samples the byte ---
 	volatile uint16_t probeAddr;   // RAM address to read (default 0x4000)

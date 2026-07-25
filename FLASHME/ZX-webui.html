@@ -152,7 +152,10 @@ const QWERTY = [
 
 // Input sources, matching enum Source in mapping.h.
 const SOURCES = ["Pulse In 1","Pulse In 2","CV In 1","CV In 2","Audio In 1","Audio In 2","Switch Down"];
-const TGT_NONE = 0, TGT_KEY = 1, TGT_KEMPSTON = 2;
+const TGT_NONE = 0, TGT_KEY = 1, TGT_KEMPSTON = 2, TGT_PORT = 3;
+// Fixed Z80 port (low byte) each source appears on when mapped to Port, matching
+// kSourcePort in mapping.h. Index = source.
+const SRC_PORT = [0xAF, 0xBF, 0x6F, 0x7F, 0x8F, 0x9F, 0xCF];
 // Kempston bits (port 0x1F: 000FUDLR), matching mapping.h.
 const KEMP = { RIGHT:0x01, LEFT:0x02, DOWN:0x04, UP:0x08, FIRE:0x10 };
 const KEMP_LABEL = { 0x08:"K:Up", 0x04:"K:Down", 0x02:"K:Left", 0x01:"K:Right", 0x10:"K:Fire" };
@@ -376,8 +379,9 @@ document.getElementById('uploadBtn').onclick = async () => {
 };
 
 // ---- mapping UI ----------------------------------------------------------
-function mapLabel(m){
+function mapLabel(m,s){
   if(m.kind===TGT_KEMPSTON) return KEMP_LABEL[m.kemp] || 'K:?';
+  if(m.kind===TGT_PORT) return 'Port 0x'+SRC_PORT[s].toString(16).toUpperCase();
   if(m.kind===TGT_KEY && m.key!==KEY_NONE) return KEYLABELS[m.key];
   return '—';
 }
@@ -385,7 +389,7 @@ function renderMapping(){
   const tb = document.querySelector('#mapTable tbody'); tb.innerHTML='';
   SOURCES.forEach((name,s)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${mapLabel(mapping[s])}</span></td>`;
+    tr.innerHTML = `<td class="name">${name}</td><td><span class="srckey" data-src="${s}">${mapLabel(mapping[s],s)}</span></td>`;
     tr.querySelector('.srckey').onclick = ()=>{ pickingSource=s; highlightPicking(); };
     tb.appendChild(tr);
   });
@@ -424,6 +428,16 @@ function renderKeyboard(){
     };
     jrow.appendChild(k);
   });
+  // "Port" target: expose the source's analog value at its fixed Z80 port.
+  const k=document.createElement('div'); k.className='key'; k.textContent='→ Port';
+  k.style.background='#2a4a3a'; k.style.minWidth='72px';
+  if(mapping.some(m=>m.kind===TGT_PORT)) k.classList.add('assigned');
+  k.onclick=()=>{
+    if(pickingSource===null) return;
+    mapping[pickingSource]={kind:TGT_PORT, key:KEY_NONE, kemp:0};
+    pickingSource=null; renderMapping(); renderKeyboard();
+  };
+  jrow.appendChild(k);
   kb.appendChild(jrow);
 }
 document.getElementById('probeBtn').onclick = ()=>{

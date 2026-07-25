@@ -45,6 +45,20 @@ enum TargetKind : uint8_t {
 	TGT_NONE,
 	TGT_KEY,        // press a Spectrum key (arg = Keycode)
 	TGT_KEMPSTON,   // set a Kempston joystick bit (arg = bit mask 000FUDLR)
+	TGT_PORT,       // expose the source's analog value (0-255) at a fixed Z80 port
+};
+
+// Fixed Z80 port (low byte) each source appears on when mapped to TGT_PORT.
+// Readable with IN A,(port). Chosen to avoid ULA/AY/Kempston/paging decode.
+//   Knob Y is a separate fixed peripheral at 0x5F (see spectrum.cpp).
+static constexpr uint8_t kSourcePort[SRC_COUNT] = {
+	0xAF, // SRC_PULSE1
+	0xBF, // SRC_PULSE2
+	0x6F, // SRC_CV1
+	0x7F, // SRC_CV2
+	0x8F, // SRC_AUDIO1
+	0x9F, // SRC_AUDIO2
+	0xCF, // SRC_SWITCH
 };
 
 // One mapping: source -> target, with a threshold for analog sources.
@@ -67,10 +81,10 @@ public:
 	void SetMapping(Source s, const Mapping &m) { table_[s] = m; }
 	const Mapping &GetMapping(Source s) const { return table_[s]; }
 
-	// Called each 48kHz sample on core 0. `srcActive[]` are the evaluated
-	// on/off states of the seven sources (computed by the caller from the jacks,
-	// which need ComputerCard access). Writes kbd.rows[] and xc.kempston.
-	void Apply(const bool srcActive[SRC_COUNT], Spectrum &spec);
+	// Called each 48kHz sample on core 0. `srcActive[]` = evaluated on/off states
+	// (for key/Kempston targets); `srcValue[]` = the 0-255 analog value of each
+	// source (for TGT_PORT). Writes kbd.rows[], xc.kempston, and xc.portVal[].
+	void Apply(const bool srcActive[SRC_COUNT], const uint8_t srcValue[SRC_COUNT], Spectrum &spec);
 
 	// Keyboard passthrough (laptop keys via the Web UI). These are OR-combined
 	// with the jack mappings in Apply(), so both work at once. keyIndex is a

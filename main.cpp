@@ -184,7 +184,19 @@ public:
 		srcActive[SRC_AUDIO1] = Connected(Input::Audio1) && AudioIn1() >= gMapper.GetMapping(SRC_AUDIO1).threshold;
 		srcActive[SRC_AUDIO2] = Connected(Input::Audio2) && AudioIn2() >= gMapper.GetMapping(SRC_AUDIO2).threshold;
 		srcActive[SRC_SWITCH] = (sw == Switch::Down);
-		gMapper.Apply(srcActive, gSpectrum);
+
+		// 0-255 value of each source for TGT_PORT (bipolar -2048..2047 -> 0..255,
+		// centre ~128). Pulses/switch are 0/255. Used when mapped to a Z80 port.
+		auto to255 = [](int32_t v){ v = (v + 2048) >> 4; return uint8_t(v < 0 ? 0 : v > 255 ? 255 : v); };
+		uint8_t srcValue[SRC_COUNT];
+		srcValue[SRC_PULSE1] = PulseIn1() ? 255 : 0;
+		srcValue[SRC_PULSE2] = PulseIn2() ? 255 : 0;
+		srcValue[SRC_CV1]    = to255(CVIn1());
+		srcValue[SRC_CV2]    = to255(CVIn2());
+		srcValue[SRC_AUDIO1] = to255(AudioIn1());
+		srcValue[SRC_AUDIO2] = to255(AudioIn2());
+		srcValue[SRC_SWITCH] = (sw == Switch::Down) ? 255 : 0;
+		gMapper.Apply(srcActive, srcValue, gSpectrum);
 
 		// Latch emulator outputs (written by core 1) to the hardware.
 		PulseOut1(gSpectrum.xc.beeper);           // beeper (dry)
