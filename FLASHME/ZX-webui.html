@@ -527,15 +527,24 @@ function renderKeyboard(){
     jrow.appendChild(k);
   });
   // "Port" target: expose the source's analog value at its fixed Z80 port.
-  const k=document.createElement('div'); k.className='key'; k.textContent='→ Port';
-  k.style.background='#2a4a3a'; k.style.minWidth='72px';
-  if(mapping.some(m=>m.kind===TGT_PORT)) k.classList.add('assigned');
-  k.onclick=()=>{
+  const kp=document.createElement('div'); kp.className='key'; kp.textContent='→ Port';
+  kp.style.background='#2a4a3a'; kp.style.minWidth='72px';
+  if(mapping.some(m=>m.kind===TGT_PORT)) kp.classList.add('assigned');
+  kp.onclick=()=>{
     if(pickingSource===null) return;
     mapping[pickingSource]={kind:TGT_PORT, key:KEY_NONE, kemp:0};
     pickingSource=null; renderMapping(); renderKeyboard();
   };
-  jrow.appendChild(k);
+  jrow.appendChild(kp);
+  // "None": unassign the picked source (TGT_NONE).
+  const kn=document.createElement('div'); kn.className='key'; kn.textContent='✕ None';
+  kn.style.background='#4a2a2a'; kn.style.minWidth='72px';
+  kn.onclick=()=>{
+    if(pickingSource===null) return;
+    mapping[pickingSource]={kind:TGT_NONE, key:KEY_NONE, kemp:0};
+    pickingSource=null; renderMapping(); renderKeyboard();
+  };
+  jrow.appendChild(kn);
   kb.appendChild(jrow);
 }
 document.getElementById('probeBtn').onclick = ()=>{
