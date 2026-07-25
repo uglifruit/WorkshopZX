@@ -163,10 +163,11 @@ int16_t AY::Render(uint32_t tstates)
 		out += kVolTable[vol & 0x0F];
 	}
 
-	// out is a sum of up to 3 channels, each 0..682 -> max ~2046. Already in the
-	// signed 12-bit AudioOut range. Centre it slightly negative? Keep unipolar->
-	// bipolar by subtracting a small DC so silence sits near 0.
-	return int16_t(out);
+	// `out` is a unipolar sum of up to 3 channels (0..~2046). Centre it so silence
+	// sits near 0 and the waveform swings bipolar, which is what AudioOut expects
+	// (and avoids a DC offset / thump). Subtract half the max single-channel level
+	// as a nominal midpoint.
+	return int16_t(out - 512);
 }
 
 } // namespace zx

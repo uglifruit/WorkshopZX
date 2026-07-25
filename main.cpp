@@ -189,7 +189,7 @@ public:
 		if (gSpectrum.xc.beeper != lastBeep) { beepSeen = 24000; lastBeep = gSpectrum.xc.beeper; }
 		if (beepSeen) beepSeen--;
 		LedOn(5, beepSeen != 0);
-		LedOn(3, gSpectrum.mem.pagingLatch & 0x20);
+		LedOn(3, gSpectrum.mem.pagingLatch & 0x20);   // paging locked
 
 		// Left column: border colour bar (restored now perf is confirmed OK).
 		LedBrightness(0, (b & 1) ? 4095 : 0);
