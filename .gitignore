@@ -19,3 +19,7 @@ snapshots/*.sna
 !snapshots/bakedasm.z80
 FLASHME/*.bin
 FLASHME/*.tap
+FLASHME/*.ay
+FLASHME/*.pt3
+snapshots/*.ay
+snapshots/*.pt3
