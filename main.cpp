@@ -183,6 +183,25 @@ public:
 		// Knob Y -> a Z80-readable peripheral value (0-255) at port 0x5F.
 		gSpectrum.xc.knobY = uint8_t(KnobVal(Knob::Y) >> 4);
 
+		// --- Tape EAR: Audio In 1 -> ULA EAR bit (for LOAD "") ----------------
+		// The ROM's tape loader polls bit 6 of port 0xFE and times the pulses
+		// itself, so we just present Audio In 1 as a clean 1-bit signal. A
+		// comparator with hysteresis around 0 rejects noise; only active when a
+		// jack is patched into Audio In 1 (so it doesn't interfere otherwise).
+		// This is the "brave" LOAD "" path — success depends on the tape signal
+		// level/quality and our 48kHz sampling resolving the ROM's pulse widths.
+		{
+			static bool ear = false;
+			if (Connected(Input::Audio1))
+			{
+				int32_t a = AudioIn1();               // bipolar ~-2048..2047
+				if (a >  200) ear = true;             // hysteresis band ±200
+				else if (a < -200) ear = false;
+				gSpectrum.xc.earIn = ear;
+			}
+			else gSpectrum.xc.earIn = false;
+		}
+
 		// --- Evaluate the mapping sources from the jacks + switch --------------
 		// A jack only triggers if something is actually PLUGGED IN (normalisation
 		// probe). This stops floating/unpatched CV/Audio inputs pressing keys.
