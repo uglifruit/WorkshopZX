@@ -268,12 +268,50 @@ public:
 	}
 };
 
+// OneBit alternate boot mode (onebit.cpp). Held momentary switch at power-on
+// boots OneBit instead of the Spectrum.
+void run_onebit();
+
+// ---------------------------------------------------------------------------
+// BootSelector: a tiny ComputerCard that just samples the switch at power-on so
+// we can pick a boot mode. The switch is only readable once the ADC/audio worker
+// is running, so we can't read it before Run(). This selector runs Run() briefly,
+// records the switch position, then Abort()s (which returns from Run). main()
+// then dispatches to the chosen card. Hold the momentary switch DOWN at power-on
+// to boot OneBit; otherwise the ZX Spectrum boots.
+// ---------------------------------------------------------------------------
+class BootSelector : public ComputerCard
+{
+public:
+	volatile bool onebit = false;
+	virtual void ProcessSample()
+	{
+		// Let the switch reading settle (~150ms), then latch and abort.
+		if (++count_ < 7200) return;              // ~150ms @48kHz
+		onebit = (SwitchVal() == Switch::Down);   // held Down -> OneBit
+		Abort();
+	}
+private:
+	uint32_t count_ = 0;
+};
+
 int main()
 {
+	// Read the switch at power-on with a minimal card (the switch needs the ADC
+	// running, so we can't read it before Run()).
+	set_sys_clock_khz(144000, true);
+	BootSelector sel;
+	sel.Run();                    // returns when it Abort()s after latching
+
+	if (sel.onebit)
+	{
+		run_onebit();             // never returns
+	}
+
+	// --- ZX Spectrum path -------------------------------------------------
 	// Overclock for emulation headroom. 200MHz needs a small core-voltage bump;
 	// 200MHz is not a multiple of 48MHz (mild audio-input noise tradeoff), but the
-	// emulator needs the raw MHz more than pristine ADC noise here. 192MHz (=4x48)
-	// is the noise-clean alternative if this proves marginal.
+	// emulator needs the raw MHz more than pristine ADC noise here.
 	vreg_set_voltage(VREG_VOLTAGE_1_15);
 	set_sys_clock_khz(200000, true);
 

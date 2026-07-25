@@ -77,6 +77,7 @@ else()
     mapping.cpp
     reverb.cpp
     webui.cpp
+    onebit.cpp
     usb_descriptors.c
     vendor/sz80/z80.c)
 endif()
