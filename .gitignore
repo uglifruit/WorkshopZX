@@ -13,3 +13,7 @@ FLASHME/*.uf2
 FLASHME/*.z80
 snapshots/*.z80
 snapshots/*.sna
+
+# ...except the freely-usable baked demo (Andy's own ASM), committed so a fresh
+# clone builds something real. snapshot_data.h is still generated from it.
+!snapshots/bakedasm.z80

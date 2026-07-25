@@ -42,6 +42,20 @@ elseif (NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/rom128_0.h)
     "Run tools/bin2h.py manually (see reference/ROMS.md).")
 endif()
 
+# Baked-in default snapshot: generate snapshot_data.h from the committed demo
+# (snapshots/bakedasm.z80, Andy's freely-usable ASM). If no demo is present, the
+# __has_include fallback in snapshot_default.h boots to the bare 128K menu.
+set(DEFAULT_SNAPSHOT ${CMAKE_CURRENT_LIST_DIR}/snapshots/bakedasm.z80)
+if (Python3_FOUND AND EXISTS ${DEFAULT_SNAPSHOT})
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_LIST_DIR}/snapshot_data.h
+    COMMAND ${Python3_EXECUTABLE} tools/bin2h.py snapshots/bakedasm.z80 snapshot_z80 snapshot_data.h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS ${DEFAULT_SNAPSHOT} tools/bin2h.py
+    COMMENT "Generating snapshot_data.h from snapshots/bakedasm.z80")
+  add_custom_target(snapshot_header DEPENDS ${CMAKE_CURRENT_LIST_DIR}/snapshot_data.h)
+endif()
+
 # Set -DDIAG=ON to build the minimal bisecting diagnostic instead of the emulator.
 option(DIAG "Build diagnostic firmware (diag.cpp) instead of the emulator" OFF)
 if (DIAG)
@@ -68,6 +82,9 @@ else()
 endif()
 if (TARGET rom_headers)
   add_dependencies(${CARD_NAME} rom_headers)
+endif()
+if (TARGET snapshot_header)
+  add_dependencies(${CARD_NAME} snapshot_header)
 endif()
 target_compile_options(${CARD_NAME} PRIVATE -Wdouble-promotion -Wfloat-conversion -Wall -Wextra)
 target_link_options(${CARD_NAME} PRIVATE -Wl,--print-memory-usage)
