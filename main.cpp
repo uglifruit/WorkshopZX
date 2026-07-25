@@ -263,8 +263,8 @@ public:
 		//   LED 0: 128K   LED 2: 48K   LED 4: AY file
 		// Right column = status:
 		//   LED 1: CPU heartbeat (blinks while the Z80 runs)
-		//   LED 3: "correct speed" — lit when emulation is at exactly 100%
-		//   LED 5: recent beeper activity (latched blink after any toggle)
+		//   LED 3: "correct speed" (100%) — OR tape activity if Audio In 1 patched
+		//   LED 5: recent beeper activity (also the tape LOAD "" screech)
 		uint8_t mode = gSpectrum.xc.mode;
 		LedOn(0, mode == MODE_128K);
 		LedOn(2, mode == MODE_48K);
@@ -275,13 +275,23 @@ public:
 		if (alive != lastAlive) { blink++; lastAlive = alive; }
 		LedOn(1, (blink >> 11) & 1);
 
-		LedOn(3, gSpectrum.xc.speedPct == 100);   // exactly real-time (deadzone)
-
 		static bool lastBeep = false;
 		static uint32_t beepSeen = 0;
 		if (gSpectrum.xc.beeper != lastBeep) { beepSeen = 24000; lastBeep = gSpectrum.xc.beeper; }
 		if (beepSeen) beepSeen--;
 		LedOn(5, beepSeen != 0);
+
+		// LED 3 doubles as a TAPE ACTIVITY light while a jack is patched into
+		// Audio In 1: it blinks whenever the EAR bit toggles (a tape signal is
+		// being seen). Otherwise it shows "correct speed" (100%) as before.
+		static bool lastEar = false;
+		static uint32_t earSeen = 0;
+		if (gSpectrum.xc.earIn != lastEar) { earSeen = 12000; lastEar = gSpectrum.xc.earIn; }
+		if (earSeen) earSeen--;
+		if (Connected(Input::Audio1))
+			LedOn(3, (earSeen && (earSeen >> 10) & 1));  // blink = tape pulses seen
+		else
+			LedOn(3, gSpectrum.xc.speedPct == 100);      // else: correct-speed
 
 		// Advance the shared time reference the emulation core paces against.
 		gSpectrum.xc.sampleCount++;
