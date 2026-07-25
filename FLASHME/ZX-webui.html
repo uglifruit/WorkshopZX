@@ -555,17 +555,22 @@ document.getElementById('setMapBtn').onclick = ()=>{
 
 // ---- keyboard passthrough ------------------------------------------------
 // Map a browser KeyboardEvent to Spectrum matrix indices (shifted keys add CAPS).
+// Key off e.code (the PHYSICAL key) not e.key: Shift+0 gives e.key ')' (or a
+// layout-dependent symbol), so testing e.key would drop the digit. e.code stays
+// 'Digit0' regardless of Shift, so Shift+0 -> CAPS + 0 (= Spectrum DELETE) works.
 function eventToKeys(e){
   const out=[];
-  const k = e.key;
+  const code = e.code;
   if(e.getModifierState && e.getModifierState('Shift'))   out.push(IDX['CAPS']);
   if(e.getModifierState && e.getModifierState('Control')) out.push(IDX['SYM']);
-  if(/^[a-zA-Z]$/.test(k)){ out.push(IDX[k.toUpperCase()]); return out; }
-  if(/^[0-9]$/.test(k)){ out.push(IDX[k]); return out; }
-  if(k==='Enter'){ out.push(IDX['ENTER']); return out; }
-  if(k===' '){ out.push(IDX['SPACE']); return out; }
-  if(k==='Backspace'){ out.push(IDX['CAPS'], IDX['0']); return out; } // Spectrum DELETE
-  return out; // may be just a modifier
+  let m;
+  if((m=/^Key([A-Z])$/.exec(code)))    { out.push(IDX[m[1]]); return out; }
+  if((m=/^Digit([0-9])$/.exec(code)))  { out.push(IDX[m[1]]); return out; }
+  if(code==='Enter'||code==='NumpadEnter'){ out.push(IDX['ENTER']); return out; }
+  if(code==='Space'){ out.push(IDX['SPACE']); return out; }
+  // Backspace -> Spectrum DELETE (CAPS + 0). Add CAPS if not already there.
+  if(code==='Backspace'){ if(!out.includes(IDX['CAPS'])) out.push(IDX['CAPS']); out.push(IDX['0']); return out; }
+  return out; // may be just a modifier (Shift/Ctrl alone)
 }
 const heldKeys = new Map(); // event.code -> [matrix indices] currently held
 let passthrough = false;
