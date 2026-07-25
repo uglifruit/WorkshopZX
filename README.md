@@ -5,7 +5,8 @@ A program card for the **Music Thing Modular Workshop System Computer** that car
 
 - **ZX** — a cycle-accurate **ZX Spectrum 128K** (Z80 + ULA + banked memory + AY sound
   chip) that turns the module's jacks, knobs and switch into a two-way bridge between
-  the modular and the machine: play games/demos, load snapshots and `.ay` chip-music,
+  the modular and the machine: play games/demos, load snapshots and `.ay`/`.pt3`
+  chip-music,
   drive the keyboard from CV/gates or a laptop, read patched CV back as data inside a
   Spectrum program, and take beeper/border/AY out as CV and audio.
 - **OneBit** — a 1-bit "beeper synth" that ports classic ZX-Spectrum beeper-music
@@ -37,9 +38,13 @@ whichever you choose.)
 - **128K Spectrum**: 128 KB banked RAM, 32 KB ROM, `0x7FFD` paging, the ULA
   (`0xFE` beeper/border), and the **AY-3-8912** (3 tones + noise + 8 envelope shapes).
   48K programs run too.
-- **Loads** `.z80` (v1/v2/v3, 48K & 128K, RLE), `.sna` (48K/128K), and `.ay`
-  chip-music (the tune's own Z80 player runs on the emulated CPU via an IM2 harness).
-  Snapshots decode **in the browser** and stream to the card — any size fits.
+- **Loads** `.z80` (v1/v2/v3, 48K & 128K, RLE), `.sna` (48K/128K) snapshots, and
+  `.ay` / `.pt3` (Vortex Tracker) chip-music. AY tunes run their own Z80 player on
+  the emulated CPU; PT3 modules run against an embedded PT3 player — both via a
+  self-contained IM2 harness. Everything decodes **in the browser** and streams to
+  the card, so any size fits.
+- **AY-3-8912** uses the **measured** real-chip volume curve, so tunes play at correct
+  pitch, timing, envelopes and a faithful tone/noise balance.
 - A **baked-in default** program boots at power-on (built from
   `snapshots/bakedasm.z80`); with none present it boots the 128K menu.
 - **Reverb** (Freeverb-style) on the beeper+AY mix, wet/dry on Knob X.
@@ -97,7 +102,7 @@ the "brave" path — success depends on signal level and pulse-width resolution.
 USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install. Open `interface.html`,
 click **Connect**. (Pause the card — switch Up — while uploading.)
 
-- **Upload** `.z80` / `.sna` / `.ay`.
+- **Upload** `.z80` / `.sna` / `.ay` / `.pt3`.
 - **Remap** inputs on a clickable QWERTY keyboard, with **Kempston**, **→ Port** and
   **✕ None** targets.
 - **Keyboard passthrough** — type into the Spectrum. **Shift** = CAPS SHIFT,
@@ -143,6 +148,7 @@ drums. Boot it by holding the switch **Down** at power-on.
 | **Pulse Out 2** | 1-bit **drum** lane |
 | **Audio Out 1** | Tone density (PCM-style monitor of the tone) |
 | **Audio Out 2** | Drum density |
+| **LEDs** | Left (0/2/4) = **engine number in binary** (0–6). Right = note-decay glow (1) / drum kit (3) / drum activity (5) |
 
 *(OneBit uses no Web UI. See its own repo/README for the full details and engine
 history.)*
@@ -207,6 +213,10 @@ This card stands on a lot of other people's work. Thank you, all of you.
   Sean Young, *Z80 Undocumented Documented*; Chris Smith, *The ZX Spectrum ULA*;
   the **zexall** test suite; **Project AY** for the `.ay` format. **Spectaculator 8**
   was used as the reference emulator for testing.
+- **AY-3-8912** volume curve from the measured real-chip response (as used by MAME /
+  AY emulators).
+- **PT3 playback** uses the **Pro Tracker 3 / Vortex Tracker II** player routine
+  (embedded); PT3 format by **Sergey Bulba** and the Vortex Tracker authors.
 - The reverb is a fixed-point take on **Jezar at Dreampoint**'s *Freeverb* topology.
 
 **OneBit beeper engines** (all via **Beepola** by Chris Cowley):
