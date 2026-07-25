@@ -1,129 +1,155 @@
-# ZX — a ZX Spectrum for the Music Thing Workshop Computer
+# ZX + OneBit — for the Music Thing Workshop Computer
 
-A program card for the **Music Thing Modular Workshop System Computer** that runs a
-**cycle-accurate ZX Spectrum 128K** (Z80 CPU + ULA + banked memory + AY sound chip)
-in real time, and turns the module's jacks, knobs and switch into a **patchable
-control surface** for the running Spectrum — a two-way bridge between the modular
-and the machine.
+A program card for the **Music Thing Modular Workshop System Computer** that carries
+**two different instruments in one firmware**, chosen at power-on:
 
-Play games and demos, load `.z80`/`.sna` snapshots or `.ay` chip-music files over a
-browser, drive the Spectrum keyboard from CV/gates or your laptop, read patched CV
-back as data inside a Spectrum program, and take the beeper, border and AY out as
-CV and audio. It even carries **OneBit** (its 1-bit beeper-synth sibling) as an
-alternate boot mode.
+- **ZX** — a cycle-accurate **ZX Spectrum 128K** (Z80 + ULA + banked memory + AY sound
+  chip) that turns the module's jacks, knobs and switch into a two-way bridge between
+  the modular and the machine: play games/demos, load snapshots and `.ay` chip-music,
+  drive the keyboard from CV/gates or a laptop, read patched CV back as data inside a
+  Spectrum program, and take beeper/border/AY out as CV and audio.
+- **OneBit** — a 1-bit "beeper synth" that ports classic ZX-Spectrum beeper-music
+  engines. A playable modular voice with pitch CV, gate, duophony and drums.
+
+They're thematically adjacent but **used quite differently**, so their controls and
+jack mappings are documented separately below.
 
 Runs on a real Workshop Computer. Built on the RP2040.
 
+## Choosing a mode at boot
+
+| At power-on… | Boots |
+|--------------|-------|
+| Normal (switch not held) | **ZX Spectrum** |
+| **Hold the momentary switch Down** through startup (~½ sec) | **OneBit** |
+
+(ZX runs at 200 MHz, OneBit at 144 MHz; the boot dispatcher sets the clock for
+whichever you choose.)
+
 ---
 
-## Features
+# Mode 1 — ZX Spectrum
 
-**The machine**
-- **Cycle-accurate Z80** at the true 3.5469 MHz (128K) emulated rate.
+## What it does
+
+- **Cycle-accurate Z80** at the true emulated rate — 3.5469 MHz (128K) or 3.5 MHz
+  (real 48K timing when a 48K program is loaded).
 - **128K Spectrum**: 128 KB banked RAM, 32 KB ROM, `0x7FFD` paging, the ULA
-  (`0xFE` beeper/border), and the **AY-3-8912** sound chip (3 tones + noise + 8
-  envelope shapes).
-- **48K snapshots** run too (faked on the 128K model with the 48 BASIC ROM paged in).
+  (`0xFE` beeper/border), and the **AY-3-8912** (3 tones + noise + 8 envelope shapes).
+  48K programs run too.
+- **Loads** `.z80` (v1/v2/v3, 48K & 128K, RLE), `.sna` (48K/128K), and `.ay`
+  chip-music (the tune's own Z80 player runs on the emulated CPU via an IM2 harness).
+  Snapshots decode **in the browser** and stream to the card — any size fits.
+- A **baked-in default** program boots at power-on (built from
+  `snapshots/bakedasm.z80`); with none present it boots the 128K menu.
+- **Reverb** (Freeverb-style) on the beeper+AY mix, wet/dry on Knob X.
 
-**Loading**
-- **`.z80`** (v1/v2/v3, 48K & 128K, RLE-decompressed) and **`.sna`** (48K/128K)
-  snapshots.
-- **`.ay`** chip-music files (ZXAY/EMUL) — the tune's own Z80 player runs on the
-  emulated CPU, driven by a self-contained IM2 harness.
-- Snapshots decode **in the browser** and stream to the card, so any size fits with
-  no big buffer on the RP2040.
-- A **baked-in default** program (built from `snapshots/bakedasm.z80`) boots at
-  power-on; if none is present, the card boots the 128K menu.
-
-**Audio out**
-- **Beeper** → Pulse Out 1.
-- **AY** (128K game/`.ay` music) → Audio Out 2.
-- **Reverb** (Freeverb-style) of the beeper+AY mix → Audio Out 1, wet/dry on **Knob X**.
-
-**CV / control out**
-- **Border** → CV Out 1 (as a voltage).
-- **Memory probe** → CV Out 2: the value of any RAM address (0–255 → 0–5 V), chosen
-  in the Web UI (default 16384 = screen memory, so it flickers with the display).
-
-**Inputs as a control surface** — every jack + the switch can be mapped (in the Web
-UI) to something the Spectrum reads:
-- a **key** in the keyboard matrix (held while the input is active),
-- a **Kempston joystick** direction (Up/Down/Left/Right/Fire),
-- or a **Z80-readable port** — the input's live 0–255 value at a fixed port (read
-  with `IN A,(port)`), so a Spectrum program can read patched CV as data.
-
-**Web UI** (USB-MIDI / WebMIDI SysEx — Chrome/Edge, no install):
-- upload `.z80` / `.sna` / `.ay`,
-- remap inputs on a clickable QWERTY keyboard (+ Kempston + Port targets),
-- **laptop keyboard passthrough** — type into the Spectrum,
-- set the CV Out 2 memory-probe address.
-
-**Knobs & switch**
-- **Knob Main** — emulation speed, with a centre **deadzone at 100%** (speed shifts
-  emulated pitch, so the detent holds true speed). Works for snapshots *and* `.ay`.
-- **Knob X** — reverb wet/dry.
-- **Knob Y** — readable by the Z80 at **port 0x5F** (`IN 95` in BASIC).
-- **Switch** — Up = pause, Middle = run, Down = a mappable momentary keypress.
-
-**OneBit alternate boot mode** — hold the momentary switch **Down** at power-on to
-boot **OneBit** (Andy's 1-bit beeper-synth card) instead of the Spectrum. Adjacent
-cards, one firmware.
-
----
-
-## Panel
+## Panel (ZX)
 
 | Control | Function |
 |---------|----------|
-| **Knob Main** | Emulation speed (centre deadzone = exactly 100% / real time) |
-| **Knob X** | Reverb wet/dry (on Audio Out 1) |
-| **Knob Y** | Readable by the Z80 at port `0x5F` |
-| **Switch Up** | Pause |
-| **Switch Middle** | Run |
-| **Switch Down** | Mappable momentary keypress · *(held at power-on → OneBit)* |
-| **Pulse In 1/2** | Mapped inputs (key / Kempston / port) |
-| **CV In 1/2** | Mapped inputs (comparator → key/Kempston, or value → port) |
-| **Audio In 1/2** | Mapped inputs (as above) |
-| **Pulse Out 1** | **Beeper** |
-| **Pulse Out 2** | MIC / tape line |
-| **CV Out 1** | **Border** voltage |
-| **CV Out 2** | **Memory probe** — a chosen RAM byte as 0–5 V |
-| **Audio Out 1** | **Reverb** (beeper + AY), wet/dry on Knob X |
-| **Audio Out 2** | **AY-3-8912** sound |
-| **LEDs** | Left: mode (128K / 48K / AY). Right: heartbeat / correct-speed / beeper |
+| **Knob Main** | Emulation **speed** — centre **deadzone** = exactly 100% / real time (speed shifts pitch, so the detent holds true speed). Applies to snapshots and `.ay`. |
+| **Knob X** | **Reverb** wet/dry (on Audio Out 1) |
+| **Knob Y** | Readable by the Z80 at **port `0x5F`** (`IN 95` in BASIC) |
+| **Switch Up** | **Pause** (also the moment to use the Web UI) |
+| **Switch Middle** | **Run** |
+| **Switch Down** | A **mappable momentary keypress** |
 
-**Mapped input ports** (read with `IN A,(port)` when a source is mapped to *Port*):
+## Inputs (ZX)
+
+Every jack + the switch is **mapped in the Web UI** to one of: a **key** (held while
+the input is active), a **Kempston** joystick direction, a **Z80-readable port** (the
+input's live 0–255 value), or **None**. A jack only acts when something is patched in.
+
+| Jack | Default | Mappable to |
+|------|---------|-------------|
+| **Pulse In 1** | ENTER | key / Kempston / port / none |
+| **Pulse In 2** | SPACE | key / Kempston / port / none |
+| **CV In 1** | Q (comparator) | key / Kempston / port / none |
+| **CV In 2** | A | key / Kempston / port / none |
+| **Audio In 1** | O · *also the tape EAR for `LOAD ""`* | key / Kempston / port / none |
+| **Audio In 2** | P | key / Kempston / port / none |
+| **Switch Down** | ENTER | key / Kempston / port / none |
+
+**Input ports** (read with `IN A,(port)` when a source is mapped to *Port*):
 Knob Y `0x5F`, CV In 1 `0x6F`, CV In 2 `0x7F`, Audio In 1 `0x8F`, Audio In 2 `0x9F`,
 Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
 
+**Tape loading (`LOAD ""`)** — Audio In 1 doubles as the ULA EAR bit. Unmap Audio In 1
+(so it doesn't also press a key), type `LOAD ""`, and feed loud/clean tape audio in.
+LED 3 blinks when tape pulses are seen; Pulse Out 1 carries the loading screech. It's
+the "brave" path — success depends on signal level and pulse-width resolution.
+
+## Outputs (ZX)
+
+| Jack | Function |
+|------|----------|
+| **Pulse Out 1** | **Beeper** |
+| **Pulse Out 2** | MIC / tape line |
+| **CV Out 1** | **Border** voltage |
+| **CV Out 2** | **Memory probe** — a chosen RAM byte (0–255) as 0–5 V (address set in the Web UI; default 16384 = screen memory) |
+| **Audio Out 1** | **Reverb** (beeper + AY mix), wet/dry on Knob X |
+| **Audio Out 2** | **AY-3-8912** sound |
+| **LEDs** | Left: mode (128K / 48K / AY). Right: heartbeat / correct-speed *(or tape activity)* / beeper |
+
+## Web UI (ZX)
+
+USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install. Open `interface.html`,
+click **Connect**. (Pause the card — switch Up — while uploading.)
+
+- **Upload** `.z80` / `.sna` / `.ay`.
+- **Remap** inputs on a clickable QWERTY keyboard, with **Kempston**, **→ Port** and
+  **✕ None** targets.
+- **Keyboard passthrough** — type into the Spectrum. **Shift** = CAPS SHIFT,
+  **Alt** = SYMBOL SHIFT, **Shift+0** or **Backspace** = DELETE.
+- Set the **CV Out 2 memory-probe** address.
+
 ---
 
-## OneBit alternate boot mode
+# Mode 2 — OneBit
 
-Hold the momentary switch **Down** while powering on (or resetting) the card to boot
-**OneBit** — Andy's 1-bit "beeper synth", which ports classic ZX-Spectrum beeper
-music engines. Boot normally (switch not held) for the Spectrum. It's a separate
-program sharing the same firmware, so all of OneBit's own controls apply:
+A 1-bit beeper synth: a single fast-bitbanged output makes the tone, with
+pseudo-polyphony faked by interleaving/XOR-ing squares — the classic ZX beeper trick.
+Seven selectable engines (faithful ports of well-known Spectrum beeper routines) plus
+drums. Boot it by holding the switch **Down** at power-on.
 
-| Control | OneBit function |
-|---------|-----------------|
-| **Knob Main** | **Engine × decay** — seven engine bands (Beep → PlipPlop → Tritone → Qchan → Phaser → Savage → Music Box); within each band the knob sweeps note-decay short → long |
+## Panel (OneBit)
+
+| Control | Function |
+|---------|----------|
+| **Knob Main** | **Engine × decay** — seven engine bands (Beep → PlipPlop → Tritone → Qchan → Phaser → Savage → Music Box); *within* each band the knob sweeps note-decay short → long |
 | **Knob X** | **Root pitch** (~C1–C6), summed with CV In 1 |
-| **Knob Y** | Voice-2 interval (Switch Up: solo / unison / m3 / M3 / P5 / dom7 / octave) or a per-engine timbre control (Switch Mid) |
+| **Knob Y** | *Switch Up:* voice-2 interval (far CCW = solo, then unison / m3 / M3 / P5 / dom7 / octave). *Switch Middle:* a per-engine **timbre** control (Phaser detune / Savage skew depth) |
 | **Switch Up** | Duophonic — voice 2 = CV In 1 root + Knob Y interval |
-| **Switch Middle** | Duophonic — voice 2 = CV In 2 (its own 1V/oct); Knob Y = timbre |
-| **Switch Down** | Momentary tap cycles the drum kit (Click → Tritone → PCM → Synth) |
-| **CV In 1** | Voice 1 pitch, 1V/oct (+ Knob X) |
-| **CV In 2** | Voice 2 pitch, 1V/oct (in Switch Middle) |
-| **Audio In 1** | Duty / pulse-width mod; also latches the drum select at each Pulse In 2 edge |
+| **Switch Middle** | Duophonic — voice 2 = **CV In 2** (its own 1V/oct); Knob Y = timbre |
+| **Switch Down** | Momentary tap **cycles the drum kit** (Click → Tritone → PCM → Synth) |
+
+## Inputs (OneBit)
+
+| Jack | Function |
+|------|----------|
+| **CV In 1** | **Voice 1 pitch**, 1V/oct (+ Knob X) |
+| **CV In 2** | **Voice 2 pitch**, 1V/oct (in Switch Middle) |
+| **Audio In 1** | Duty / pulse-width mod; **also latches the drum select** at each Pulse In 2 edge (low = kick … high = snare) |
 | **Audio In 2** | Duty / timbre mod |
-| **Pulse In 1** | Note gate — rising edge triggers the envelope, held sustains, falling releases |
-| **Pulse In 2** | Drum trigger (drum chosen by Audio In 1) |
+| **Pulse In 1** | **Note gate** — rising edge triggers the envelope, **held sustains**, falling releases |
+| **Pulse In 2** | **Drum trigger** (drum chosen by Audio In 1) |
 
-(OneBit runs at 144 MHz; the Spectrum runs at 200 MHz. The boot dispatcher sets the
-clock for whichever you choose.) See OneBit's own repo/README for the full details.
+## Outputs (OneBit)
 
-## How it runs
+| Jack | Function |
+|------|----------|
+| **Pulse Out 1** | 1-bit **tone** (the true bitbanged beeper output) |
+| **Pulse Out 2** | 1-bit **drum** lane |
+| **Audio Out 1** | Tone density (PCM-style monitor of the tone) |
+| **Audio Out 2** | Drum density |
+
+*(OneBit uses no Web UI. See its own repo/README for the full details and engine
+history.)*
+
+---
+
+# Under the hood (ZX)
 
 `ProcessSample()` runs at 48 kHz — far too slow to *be* the 3.5 MHz Z80 clock — so
 work is split across the RP2040's two cores (the repo's `second_core` pattern):
@@ -133,11 +159,9 @@ work is split across the RP2040's two cores (the repo's `second_core` pattern):
 | **Core 1** | Free-runs the Z80 + ULA + AY, paced to emulated Spectrum time; also services USB. |
 | **Core 0** | 48 kHz I/O: latches beeper/AY/border to the outputs, samples the inputs, runs the mapping engine + reverb, presents keyboard/joystick/port state to the Z80. |
 
-They meet through a small lock-free `CrossCore` struct (single-writer per field).
-An instruction-stepped Z80 core keeps it real-time from flash. Emulator setup runs
-**on core 1**, never in the ComputerCard constructor (which would wedge the chip).
-
----
+They meet through a small lock-free `CrossCore` struct (single-writer per field). An
+instruction-stepped Z80 core keeps it real-time from flash. Emulator setup runs **on
+core 1**, never in the ComputerCard constructor (which would wedge the chip).
 
 ## Building
 
@@ -149,15 +173,15 @@ cmake --build build
 ```
 
 Produces `build/zx.uf2`. Hold BOOTSEL on the Computer's RP2040 and drop it on the
-mounted drive. The ROM headers and the baked-snapshot header are generated from
+mounted drive. ROM headers and the baked-snapshot header are generated from
 `roms/*.rom` and `snapshots/bakedasm.z80` at build time (Python + `tools/bin2h.py`).
 
 **Bake your own default snapshot:**
 ```sh
 python tools/bin2h.py path/to/game.z80 snapshot_z80 snapshot_data.h
 ```
-Copyrighted game/`.ay` files are **not** committed; only the freely-usable
-`bakedasm` demo is.
+Copyrighted game/`.ay` files are **not** committed; only the freely-usable `bakedasm`
+demo is.
 
 ---
 
@@ -167,11 +191,11 @@ This card stands on a lot of other people's work. Thank you, all of you.
 
 **Hardware & framework**
 - **Music Thing Modular Workshop System Computer** and the **ComputerCard** library —
-  Tom Whitwell / Music Thing Modular, ComputerCard by **Chris Johnson**. The whole
+  Tom Whitwell / Music Thing Modular; ComputerCard by **Chris Johnson**. The whole
   card is built on this. (MIT-licensed, header-only.)
 - **Raspberry Pi Pico SDK** / RP2040 — Raspberry Pi Ltd.
 
-**Emulation**
+**ZX Spectrum emulation**
 - **Z80 CPU core** — [`superzazu/z80`](https://github.com/superzazu/z80) by
   **Nicolas Allemand** (MIT). Instruction-stepped, passes zexdoc/zexall. Vendored in
   `vendor/sz80/` with its licence; the only modification is a `port16` field so the
@@ -181,20 +205,18 @@ This card stands on a lot of other people's work. Thank you, all of you.
 - Format & hardware references: **World of Spectrum** and the **Sinclair Wiki**
   (`.z80`/`.sna`/`.ay` formats, `0x7FFD` paging, ULA port decode, AY, Kempston);
   Sean Young, *Z80 Undocumented Documented*; Chris Smith, *The ZX Spectrum ULA*;
-  the **zexall** test suite as a Z80 verification reference; **Project AY** for the
-  `.ay` format. **Spectaculator 8** was used as the reference emulator for testing.
+  the **zexall** test suite; **Project AY** for the `.ay` format. **Spectaculator 8**
+  was used as the reference emulator for testing.
+- The reverb is a fixed-point take on **Jezar at Dreampoint**'s *Freeverb* topology.
 
-**Sibling card**
-- **OneBit** (bundled as the alternate boot mode) ports classic ZX-Spectrum 1-bit
-  "beeper" engines. Credits (all via **Beepola** by Chris Cowley): **Joffa Smith**
-  (PlipPlop / Special FX), **Shiru** (Tritone / Qchan / Phaser / Huby), **Jason C
-  Brooke** (Savage), **Mark Alexander** (Music Box), **Saa Puica** (Music Studio),
-  and above all **utz** for the 1-bit routine tutorials and community.
+**OneBit beeper engines** (all via **Beepola** by Chris Cowley):
+- **Joffa Smith** — PlipPlop / Special FX · **Shiru** — Tritone / Qchan / Phaser /
+  Huby · **Jason C Brooke** — Savage · **Mark Alexander** — Music Box ·
+  **Saa Puica** — Music Studio · and above all **utz** for the 1-bit routine
+  tutorials and community.
 
 **This card**
-- ZX for the Workshop Computer — **Andy Jenkinson** (**uglifruit**), 2026.
-
-The reverb is a fixed-point take on **Jezar at Dreampoint**'s *Freeverb* topology.
+- ZX + OneBit for the Workshop Computer — **Andy Jenkinson** (**uglifruit**), 2026.
 
 ## Licence
 
