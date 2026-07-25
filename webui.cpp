@@ -109,6 +109,7 @@ void WebUI::ApplyDecoded(void *machinePtr)
 	z->iff2 = (imf >> 3) & 1;
 	spec_->xc.border = s[15] & 7;
 	spec_->mem.SetPaging(s[16]);
+	spec_->xc.mode = s[17] ? MODE_128K : MODE_48K;   // is128 byte -> LED mode
 	z->a_=s[18]; z->f_=s[19]; z->c_=s[20]; z->b_=s[21];
 	z->e_=s[22]; z->d_=s[23]; z->l_=s[24]; z->h_=s[25];
 	z->ix = s[26] | (s[27] << 8);

@@ -198,36 +198,34 @@ public:
 		int32_t mixed = (dry * (4095 - wetAmt) + wet * wetAmt) >> 12;
 		AudioOut1(int16_t(mixed));
 
-		// Border colour -> CV Out 1 (stepped voltage) + left LED column as a bar.
+		// Border colour still drives CV Out 1 (a voltage), but no longer the LEDs.
 		uint8_t b = gSpectrum.xc.border;
 		CVOut1(int16_t((b * 2047) / 7));
-		LedBrightness(0, (b & 1) ? 4095 : 0);   // border bit 0
-		LedBrightness(2, (b & 2) ? 4095 : 0);   // border bit 1
-		LedBrightness(4, (b & 4) ? 4095 : 0);   // border bit 2
 
-		// Right LED column = status:
+		// --- LED layout ------------------------------------------------------
+		// Left column = machine mode (one lit):
+		//   LED 0: 128K   LED 2: 48K   LED 4: AY file
+		// Right column = status:
 		//   LED 1: CPU heartbeat (blinks while the Z80 runs)
-		//   LED 3: paging latch locked
+		//   LED 3: "correct speed" — lit when emulation is at exactly 100%
 		//   LED 5: recent beeper activity (latched blink after any toggle)
+		uint8_t mode = gSpectrum.xc.mode;
+		LedOn(0, mode == MODE_128K);
+		LedOn(2, mode == MODE_48K);
+		LedOn(4, mode == MODE_AY);
+
 		static uint32_t lastAlive = 0, blink = 0;
 		uint32_t alive = gSpectrum.xc.emuAlive;
 		if (alive != lastAlive) { blink++; lastAlive = alive; }
 		LedOn(1, (blink >> 11) & 1);
+
+		LedOn(3, gSpectrum.xc.speedPct == 100);   // exactly real-time (deadzone)
 
 		static bool lastBeep = false;
 		static uint32_t beepSeen = 0;
 		if (gSpectrum.xc.beeper != lastBeep) { beepSeen = 24000; lastBeep = gSpectrum.xc.beeper; }
 		if (beepSeen) beepSeen--;
 		LedOn(5, beepSeen != 0);
-		LedOn(3, gSpectrum.mem.pagingLatch & 0x20);   // paging locked
-
-		// Left column: border colour bar (restored now perf is confirmed OK).
-		LedBrightness(0, (b & 1) ? 4095 : 0);
-		LedBrightness(2, (b & 2) ? 4095 : 0);
-		LedBrightness(4, (b & 4) ? 4095 : 0);
-
-		// TODO(boot-slice+1): sample inputs and run the mapping engine here,
-		// writing gSpectrum.kbd.rows[] / xc.kempston / xc.earIn.
 
 		// Advance the shared time reference the emulation core paces against.
 		gSpectrum.xc.sampleCount++;

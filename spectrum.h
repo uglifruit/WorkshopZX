@@ -143,7 +143,12 @@ struct CrossCore
 	volatile uint32_t emuAlive;    // ++ each core-1 emulation batch (proves it runs)
 	volatile uint32_t maxElapsed;  // worst-case samples/batch backlog (perf meter):
 	                               // ~1 = keeping up; near the 96 cap = far too slow
+
+	// --- machine mode, written by core 1 (load path), read by core 0 (LEDs) ---
+	volatile uint8_t  mode;        // 0 = 128K, 1 = 48K, 2 = AY file (see MachineMode)
 };
+
+enum MachineMode : uint8_t { MODE_128K = 0, MODE_48K = 1, MODE_AY = 2 };
 
 // ---------------------------------------------------------------------------
 // The machine: owns memory, ULA/keyboard/AY state, and the Z80 hooks.

@@ -99,6 +99,7 @@ void Spectrum::Reset()
 	xc.kempston = 0;
 	xc.sampleCount = 0;
 	xc.speedPct = 100;   // default real-time until core 0 reads Knob Main
+	xc.mode = MODE_128K; // default; load path sets 48K/AY
 	frameTStates = 0;
 	intPending = false;
 }
