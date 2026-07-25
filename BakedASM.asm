@@ -183,27 +183,43 @@ SPC_DEL2: DEC C
 ; A 1-bit take on bytebeat music. XORs the high and low bytes
 ; of a counter, masking it dynamically with Port 95.
 ; ---------------------------------------------------------
+; ---------------------------------------------------------
+; [ENTER] CV-PITCHED BYTEBEAT (FRACTAL NOISE)
+; Uses Port 95 to dynamically stretch the time between 
+; samples, acting as a direct V/Oct style pitch control 
+; over the bitwise fractal sequence.
+; ---------------------------------------------------------
 PLAY_ENTER:
-        LD HL, 0        ; Setup our fractal counter
-        LD DE, $3000    ; Duration
+        LD HL, 0        ; Setup our fractal time counter
+        LD DE, $100    ; Duration (shorter base, as the delay will extend it)
+        
 ENT_LOOP:
+        ; 1. Generate the bytebeat sample
         LD A, H
-        XOR L           ; Standard bitwise fractal (t ^ (t >> 8))
+        XOR L           ; Standard bitwise fractal: (t ^ (t >> 8))
+        AND 16          ; Isolate the speaker bit
+        OUT (254), A    ; Output to ULA
 
-        push af
-        IN A, (95)      ; Read Port 95
-        pop af
-        ld b,a
-        AND B           ; Destructively mask the fractal with the CV input!
+        ; 2. Read Port 95 for pitch control
+        IN A, (95)      ; Read external CV (0-255)
+        
+        ; Optional: Scale the input if the lowest pitch is too slow.
+        ; SRL A         ; Uncomment to halve the maximum delay (higher overall pitch)
+        
+        INC A           ; Ensure B is never 0 (which would wrap to 256 and cause a huge delay)
+        LD B, A         ; Set our delay counter based on the CV
 
-        AND 16          ; Isolate speaker bit
-        OUT (254), A
+        ; 3. Variable delay (Clock Divider)
+ENT_DELAY:
+        DJNZ ENT_DELAY  ; Loop B times. Higher Port 95 = longer delay = lower pitch
 
-        INC HL          ; Advance time
+        ; 4. Advance time and loop
+        INC HL          ; Advance fractal time
 
         DEC DE
         LD A, D
         OR E
+
         JR NZ, ENT_LOOP
         JP MAIN_LOOP
         
