@@ -387,38 +387,55 @@ function parseAY(d, songIndex=0){
     o+=6;
   }
 
-  // Player stub: a tiny driver placed at a free high address. It sets the song
-  // number, calls Init, then loops HALT + CALL interrupt (IM1: the 48K ROM's
-  // 0x38 handler runs on each frame INT, RETs, we then CALL the song routine).
-  // Placed at 0x5B00 (just above screen+attrs 0x4000-0x5AFF, usually free).
-  const STUB=0x5B00;
-  const stub=[
-    0xF3,                       // DI
-    0x21, idx&0xFF, (idx>>8)&0xFF,   // LD HL, songnum
-    0x11, idx&0xFF, (idx>>8)&0xFF,   // LD DE, songnum
-    0x3E, idx&0xFF,             // LD A, songnum
-    0xCD, init&0xFF, (init>>8)&0xFF, // CALL Init
-    0xFB,                       // EI
-    // loop:
-    0x76,                       // HALT  (wait for 50Hz INT)
-    0xCD, interrupt&0xFF, (interrupt>>8)&0xFF, // CALL Interrupt
-    0x18, 0xFA,                 // JR loop (-6)
+  // --- Self-contained player harness (no ROM dependency) --------------------
+  // The .ay player provides Init and Interrupt but does NOT set up interrupts
+  // itself. We drive it with IM2 so we don't rely on the 48K ROM's 0x38 handler
+  // (which needs the system-variables area / IY set up). Layout in free RAM:
+  //   0x5D00        : driver code (PC starts here)
+  //   0x5E00        : trivial INT handler (EI; RET)  -> just wakes HALT
+  //   0x5F00..0x6000: 257-byte IM2 vector table, all bytes = 0x5E (-> handler
+  //                   at 0x5E5E). I register = 0x5F.
+  const HANDLER=0x5E5E, TABLE=0x5F00, IREG=0x5F, DRIVER=0x5D00;
+
+  // IM2 vector table: 257 bytes all = 0x5E so any vector -> 0x5E5E.
+  for(let i=0;i<=256;i++) flat[TABLE+i]=0x5E;
+  // INT handler at 0x5E5E: EI; RET  (the frame INT just wakes HALT).
+  flat[HANDLER+0]=0xFB; flat[HANDLER+1]=0xC9;
+
+  // Driver at 0x5D00:
+  //   DI; IM2; LD A,0x5F; LD I,A;
+  //   LD HL,songnum; LD DE,0; LD A,songnum; CALL Init;
+  //   EI
+  // loop: HALT; CALL Interrupt; JR loop
+  const drv=[
+    0xF3,                             // DI
+    0xED,0x5E,                        // IM2
+    0x3E, IREG, 0xED,0x47,            // LD A,0x5F ; LD I,A
+    0x21, idx&0xFF,(idx>>8)&0xFF,     // LD HL,songnum
+    0x11, 0x00,0x00,                  // LD DE,0
+    0x3E, idx&0xFF,                   // LD A,songnum
+    0xCD, init&0xFF,(init>>8)&0xFF,   // CALL Init
+    0xFB,                             // EI
+    0x76,                             // HALT   <- loop
+    0xCD, interrupt&0xFF,(interrupt>>8)&0xFF, // CALL Interrupt
+    0x18, 0xFA,                       // JR loop (-6)
   ];
-  for(let i=0;i<stub.length;i++) flat[STUB+i]=stub[i];
+  for(let i=0;i<drv.length;i++) flat[DRIVER+i]=drv[i];
 
   // Map flat 0x4000-0xFFFF into RAM banks 5,2,0 (the 48K layout).
   ram[5].set(flat.subarray(0x4000,0x8000));
   ram[2].set(flat.subarray(0x8000,0xC000));
   ram[0].set(flat.subarray(0xC000,0x10000));
 
-  // State block: PC=stub, SP=stack (or 0xFFFF if 0), IM1, interrupts on.
+  // State block: PC=driver, SP=stack (or 0xFFFF), IM handled by the driver.
   const st=makeState();
-  st[8]=STUB&0xFF; st[9]=(STUB>>8)&0xFF;       // PC = stub
+  st[8]=DRIVER&0xFF; st[9]=(DRIVER>>8)&0xFF;    // PC = driver
   const sp = stack||0xFFFF; st[10]=sp&0xFF; st[11]=(sp>>8)&0xFF;
-  st[14]=1 | (1<<2) | (1<<3);                   // IM1, IFF1+IFF2 on
-  st[15]=0;                                      // border black
-  st[16]=0x10;                                   // 48K paging (ROM1 = 48 BASIC)
-  st[17]=2;                                       // mode: 2 = AY (firmware pages 48K ROM + MODE_AY LED)
+  st[12]=IREG;                                   // I register (for IM2 table page)
+  st[14]=2 | (1<<2) | (1<<3);                    // IM2, IFF1+IFF2 on
+  st[15]=0;                                       // border black
+  st[16]=0x10;                                    // 48K paging (ROM1 = 48 BASIC)
+  st[17]=2;                                        // mode 2 = AY
   return {st, ram, is128:false, isAY:true};
 }
 
