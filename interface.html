@@ -79,12 +79,12 @@
   </p>
 
   <div class="panel">
-    <h2>Snapshot / AY upload (.z80 / .sna / .ay)</h2>
+    <h2>Snapshot / music upload (.z80 / .sna / .ay / .pt3)</h2>
     <div class="row">
-      <input type="file" id="fileInput" accept=".z80,.sna,.ay">
+      <input type="file" id="fileInput" accept=".z80,.sna,.ay,.pt3">
       <button id="uploadBtn" disabled>Upload to card</button>
     </div>
-    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3), <b>.sna</b> (48K/128K) snapshots, and <b>.ay</b> chip-music files. Upload with the card switch <b>Up</b> (Pause).</p>
+    <p class="hint">Accepts <b>.z80</b> (v1/v2/v3), <b>.sna</b> (48K/128K) snapshots, and <b>.ay</b> / <b>.pt3</b> (Vortex Tracker) chip-music. Upload with the card switch <b>Up</b> (Pause).</p>
     <progress id="prog" value="0" max="1" style="display:none"></progress>
     <div id="uploadStatus" class="hint"></div>
   </div>
@@ -439,6 +439,54 @@ function parseAY(d, songIndex=0){
   return {st, ram, is128:false, isAY:true};
 }
 
+// ---- PT3 (Vortex Tracker) playback ---------------------------------------
+// A .pt3 is just module DATA; we embed a PT3 player (PT3PLAYER.bin, origin
+// 0xC000) and drop the module at 0xC86E, then run: CALL 0xC000 (init — the
+// player loads HL=module itself) then HALT + CALL 0xC005 each 50Hz frame.
+// Same self-contained IM2 harness as .ay. Player is base64-embedded below.
+const PT3PLAYER_B64 = "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";
+function b64bytes(s){ const bin=atob(s); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+
+function parsePT3(d){
+  const PLAYER=0xC000, MODULE=0xC86E;
+  const ram=emptyRam();
+  const flat=new Uint8Array(0x10000);
+
+  // Player code at 0xC000, module data at 0xC86E.
+  const player=b64bytes(PT3PLAYER_B64);
+  flat.set(player, PLAYER);
+  for(let i=0;i<d.length && MODULE+i<=0xFFFF;i++) flat[MODULE+i]=d[i];
+
+  // IM2 harness (same as .ay): table 0x5F00 -> handler 0x5E5E (EI;RET); driver
+  // 0x5D00: DI; IM2; I=0x5F; CALL init(player); EI; loop HALT; CALL play; JR.
+  const HANDLER=0x5E5E, TABLE=0x5F00, IREG=0x5F, DRIVER=0x5D00;
+  for(let i=0;i<=256;i++) flat[TABLE+i]=0x5E;
+  flat[HANDLER+0]=0xFB; flat[HANDLER+1]=0xC9;
+  const drv=[
+    0xF3,                        // DI
+    0xED,0x5E,                   // IM2
+    0x3E,IREG,0xED,0x47,         // LD A,0x5F; LD I,A
+    0xCD,PLAYER&0xFF,(PLAYER>>8)&0xFF,       // CALL 0xC000 (init)
+    0xFB,                        // EI
+    0x76,                        // HALT  <- loop
+    0xCD,(PLAYER+5)&0xFF,((PLAYER+5)>>8)&0xFF, // CALL 0xC005 (play)
+    0x18,0xFA,                   // JR loop (-6)
+  ];
+  for(let i=0;i<drv.length;i++) flat[DRIVER+i]=drv[i];
+
+  ram[5].set(flat.subarray(0x4000,0x8000));
+  ram[2].set(flat.subarray(0x8000,0xC000));
+  ram[0].set(flat.subarray(0xC000,0x10000));
+
+  const st=makeState();
+  st[8]=DRIVER&0xFF; st[9]=(DRIVER>>8)&0xFF;   // PC = driver
+  st[10]=0xFF; st[11]=0xFF;                      // SP = 0xFFFF
+  st[12]=IREG; st[14]=2|(1<<2)|(1<<3);           // I; IM2; IFF on
+  st[15]=0; st[16]=0x10; st[17]=2;               // border; 48K ROM; mode = AY
+  return {st, ram, is128:false, isAY:true};
+}
+
 document.getElementById('fileInput').onchange = e => {
   document.getElementById('uploadBtn').disabled = !(e.target.files.length && midiOut);
 };
@@ -447,8 +495,9 @@ document.getElementById('uploadBtn').onclick = async () => {
   const d = new Uint8Array(await f.arrayBuffer());
   const isSNA = /\.sna$/i.test(f.name) || d.length===49179 || d.length===131103 || d.length===147499;
   const isAY  = /\.ay$/i.test(f.name) || (d.length>8 && d[0]===0x5A&&d[1]===0x58&&d[2]===0x41&&d[3]===0x59); // 'ZXAY'
+  const isPT3 = /\.pt3$/i.test(f.name) || (d.length>13 && String.fromCharCode(...d.slice(0,13))==='ProTracker 3.'); // PT3 magic
   let parsed;
-  try { parsed = isAY ? parseAY(d) : isSNA ? parseSNA(d) : parseZ80(d); }
+  try { parsed = isPT3 ? parsePT3(d) : isAY ? parseAY(d) : isSNA ? parseSNA(d) : parseZ80(d); }
   catch(err){ document.getElementById('uploadStatus').textContent = "Parse error: "+err.message; return; }
 
   const prog = document.getElementById('prog'); prog.style.display='block';
