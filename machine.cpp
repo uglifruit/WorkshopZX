@@ -79,9 +79,12 @@ void Machine::Run(uint32_t tstates)
 		uint32_t used = uint32_t(z->cyc - before);
 
 		frameT_ += used;
-		if (frameT_ >= kTStatesPerFrame)
+		// Per-mode frame length (48K = 69888, 128K = 70908) so a 48K program's
+		// interrupt tempo is correct, not 128K's.
+		uint32_t framelen = spec_->xc.tsPerFrame;
+		if (frameT_ >= framelen)
 		{
-			frameT_ -= kTStatesPerFrame;
+			frameT_ -= framelen;
 			z80_gen_int(z, 0xFF); // maskable frame interrupt, IM1 vector
 		}
 	}

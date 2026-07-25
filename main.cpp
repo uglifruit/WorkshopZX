@@ -78,8 +78,9 @@ public:
 		// (one 50Hz frame). We derive elapsed emulated time from how many 48kHz
 		// audio samples core 0 has counted, which keeps the Spectrum locked to
 		// audio time (and hence to the outputs) rather than to core1's own speed.
-		constexpr uint32_t tStatesPerSample = kCpuHz / 48000; // ~73 T-states
-		uint32_t lastSample = 0;
+		uint32_t lastSample = 0;   // T-states/sample now comes from xc.tsPerSample
+		                           // (per-mode: 48K vs 128K run at slightly
+		                           // different clocks, set by the load path).
 
 		while (true)
 		{
@@ -148,7 +149,7 @@ public:
 			// Speed changes emulated pitch on 1-bit material, which is the point;
 			// a centre deadzone (set on core 0) holds exactly 100% when wanted.
 			uint32_t spd = gSpectrum.xc.speedPct;
-			gMachine.Run((elapsed * tStatesPerSample * spd) / 100);
+			gMachine.Run((elapsed * gSpectrum.xc.tsPerSample * spd) / 100);
 
 			// Publish a heartbeat + paging state for core 0 to show on LEDs.
 			// (LED hardware is driven only from core 0 to avoid contention.)

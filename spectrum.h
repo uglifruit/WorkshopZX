@@ -28,6 +28,9 @@ namespace zx {
 constexpr uint32_t kCpuHz          = 3546900;   // 128K Z80 clock
 constexpr uint32_t kTStatesPerFrame = 70908;    // per 50Hz frame (128K)
 constexpr uint32_t kFrameHz        = 50;        // nominal
+// 48K machine timing (real 48K runs slightly slower than the 128K):
+constexpr uint32_t kCpuHz48         = 3500000;  // 48K Z80 clock (3.5 MHz)
+constexpr uint32_t kTStatesPerFrame48 = 69888;  // per 50Hz frame (48K)
 
 // ---------------------------------------------------------------------------
 // Memory: 128KB RAM (8 pages) + 32KB ROM (2 pages), 16KB each.
@@ -152,6 +155,10 @@ struct CrossCore
 	volatile bool paused;          // core 0 sets when Switch == Up (freeze)
 	volatile uint16_t speedPct;    // emulation speed %, set from Knob Main. 100 =
 	                               // real time (a centre deadzone holds exactly 100).
+	// Per-mode emulated timing (set by the load path): 128K vs real 48K differ
+	// slightly, so a 48K tune plays at true 48K pitch/tempo, not 128K.
+	volatile uint32_t tsPerFrame;  // T-states per 50Hz frame (frame-INT boundary)
+	volatile uint32_t tsPerSample; // T-states per 48kHz audio sample (pacing)
 
 	// --- diagnostics, written by core 1, read by core 0 for LED heartbeat ---
 	volatile uint32_t emuAlive;    // ++ each core-1 emulation batch (proves it runs)
@@ -179,6 +186,7 @@ struct Spectrum
 	bool     intPending = false;   // frame interrupt latch
 
 	void Reset();
+	void SetMode(uint8_t m);   // set mode + its emulated timing (48K vs 128K)
 	void EmbedRoms(const uint8_t *rom128, const uint8_t *rom48);
 
 	// Z80 bus callbacks (signatures the z80 core expects).

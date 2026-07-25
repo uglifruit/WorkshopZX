@@ -106,8 +106,27 @@ void Spectrum::Reset()
 	xc.audioReady = false;   // core 0 mutes audio until core 1 signals ready
 	xc.speedPct = 100;   // default real-time until core 0 reads Knob Main
 	xc.mode = MODE_128K; // default; load path sets 48K/AY
+	xc.tsPerFrame  = kTStatesPerFrame;      // 128K timing by default
+	xc.tsPerSample = kCpuHz / 48000;
 	frameTStates = 0;
 	intPending = false;
+}
+
+// Set the machine mode and its emulated timing together. 48K uses real 48K
+// timing (3.5MHz / 69888 T/frame); 128K and AY use 128K timing.
+void Spectrum::SetMode(uint8_t m)
+{
+	xc.mode = m;
+	if (m == MODE_48K)
+	{
+		xc.tsPerFrame  = kTStatesPerFrame48;
+		xc.tsPerSample = kCpuHz48 / 48000;
+	}
+	else
+	{
+		xc.tsPerFrame  = kTStatesPerFrame;
+		xc.tsPerSample = kCpuHz / 48000;
+	}
 }
 
 void Spectrum::EmbedRoms(const uint8_t *rom128, const uint8_t *rom48)

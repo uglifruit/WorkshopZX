@@ -100,7 +100,7 @@ bool LoadSNA(Machine &m, const uint8_t *d, uint32_t len)
 	if (len >= 27 + 0xC000 + 4)
 	{
 		// 128K .sna tail: PC (2), 0x7FFD (1), TR-DOS flag (1), then extra 16KB banks.
-		spec->xc.mode = MODE_128K;
+		spec->SetMode(MODE_128K);
 		const uint8_t *tail = d + 27 + 0xC000;
 		z->pc = tail[0] | (tail[1] << 8);
 		uint8_t port = tail[2];
@@ -123,7 +123,7 @@ bool LoadSNA(Machine &m, const uint8_t *d, uint32_t len)
 	else
 	{
 		// 48K .sna: PC is on the stack — pop it.
-		spec->xc.mode = MODE_48K;
+		spec->SetMode(MODE_48K);
 		uint16_t sp = z->sp;
 		uint8_t lo = spec->mem.Read(sp);
 		uint8_t hi = spec->mem.Read(sp + 1);
@@ -168,7 +168,7 @@ bool LoadZ80(Machine &m, const uint8_t *d, uint32_t len)
 	if (pc != 0)
 	{
 		// --- v1 snapshot: 48K, single (maybe compressed) 48KB block ---
-		spec->xc.mode = MODE_48K;
+		spec->SetMode(MODE_48K);
 		z->pc = pc;
 		// v1 is a 48K machine; set 48K-style paging (ROM1=48 BASIC in low slot).
 		// For our 128K model, page in ROM so 0x0000-0x3FFF is 48 BASIC and RAM5/2/0.
@@ -202,7 +202,7 @@ bool LoadZ80(Machine &m, const uint8_t *d, uint32_t len)
 
 	// hwMode: v2 3/4/5 => 128K; v3 4/5/6 => 128K. Below that = 48K.
 	bool is128 = (extLen == 23) ? (hwMode >= 3) : (hwMode >= 4);
-	spec->xc.mode = is128 ? MODE_128K : MODE_48K;
+	spec->SetMode(is128 ? MODE_128K : MODE_48K);
 
 	if (is128)
 		spec->mem.SetPaging(port7ffd);

@@ -112,7 +112,7 @@ void WebUI::ApplyDecoded(void *machinePtr)
 	// s[17] mode byte: 0 = 48K, 1 = 128K, 2 = AY file. AY uses the 48K ROM
 	// (paging 0x10 already selects the 48 BASIC ROM, which has the IM1 0x38
 	// handler the .ay player relies on).
-	spec_->xc.mode = (s[17] == 2) ? MODE_AY : (s[17] == 1) ? MODE_128K : MODE_48K;
+	spec_->SetMode((s[17] == 2) ? MODE_AY : (s[17] == 1) ? MODE_128K : MODE_48K);
 	z->a_=s[18]; z->f_=s[19]; z->c_=s[20]; z->b_=s[21];
 	z->e_=s[22]; z->d_=s[23]; z->l_=s[24]; z->h_=s[25];
 	z->ix = s[26] | (s[27] << 8);
