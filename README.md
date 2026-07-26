@@ -174,8 +174,10 @@ drums. Boot it by holding the switch **Down** at power-on.
 | **Audio Out 2** | Drum density |
 | **LEDs** | Left (0/2/4) = **engine number in binary** (0–6). Right = note-decay glow (1) / drum kit (3) / drum activity (5) |
 
-*(OneBit uses no Web UI. See its own repo/README for the full details and engine
-history.)*
+*(OneBit uses no Web UI. See its own repo, **<https://github.com/uglifruit/OneBit>**,
+for the full details, build history (DEVLOG) and per-engine credits — that repo is
+OneBit's standalone development home; the engine here is the same code reused as a
+boot mode.)*
 
 ---
 
@@ -243,7 +245,9 @@ This card stands on a lot of other people's work. Thank you, all of you.
   (embedded); PT3 format by **Sergey Bulba** and the Vortex Tracker authors.
 - The reverb is a fixed-point take on **Jezar at Dreampoint**'s *Freeverb* topology.
 
-**OneBit beeper engines** (all via **Beepola** by Chris Cowley):
+**OneBit beeper engines** — from the standalone
+[**OneBit**](https://github.com/uglifruit/OneBit) synth (reused here as a boot mode);
+all via **Beepola** by Chris Cowley:
 - **Joffa Smith** — PlipPlop / Special FX · **Shiru** — Tritone / Qchan / Phaser /
   Huby · **Jason C Brooke** — Savage · **Mark Alexander** — Music Box ·
   **Saa Puica** — Music Studio · and above all **utz** for the 1-bit routine
