@@ -89,6 +89,23 @@ input's live 0–255 value), or **None**. A jack only acts when something is pat
 Knob Y `0x5F`, CV In 1 `0x6F`, CV In 2 `0x7F`, Audio In 1 `0x8F`, Audio In 2 `0x9F`,
 Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
 
+## Write your own — a Spectrum program in the CV world
+
+The real point of ZX mode is to **write a ZX Spectrum program that interfaces with the
+modular** — read patched CV/gates (as keypresses, joystick, or values on the input
+ports), do whatever you like in Z80, and drive the beeper / border / AY / memory-probe
+CV back out. Write it in BASIC or assembly, assemble/save a `.z80` (or `.sna`), and
+either upload it over the Web UI or bake it in as the default.
+
+The baked-in default demo is exactly this — its source is
+[`BakedASM.asm`](BakedASM.asm), a small Z80 program that:
+- scans the **keyboard** (so it responds to whatever CV/gates you've mapped to keys),
+- reads **Port 95** (`IN A,(95)` = Knob Y) and uses it to modulate the sound, and
+- bangs the **beeper** (`OUT (254),A`) → Pulse Out 1.
+
+That's the whole loop — modular in → Spectrum logic → audio/CV out — in ~40 lines.
+Start from it. (`snapshots/bakedasm.z80` is the assembled version that gets baked in.)
+
 ## Outputs (ZX)
 
 | Jack | Function |
