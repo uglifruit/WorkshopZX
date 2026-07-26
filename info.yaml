@@ -1,111 +1,126 @@
+draft: false
 Name: ZX
-Description: "ZX — a cycle-accurate ZX Spectrum 128K (Z80 + ULA + banked RAM + AY-3-8912) running inside the Workshop Computer, turning the modular jacks/knobs/switch into a patchable control surface for the running Spectrum. Loads .z80/.sna snapshots and .ay/.pt3 chip-music over a USB Web UI (or baked in); maps CV/gates/audio to keypresses, Kempston joystick or Z80-readable ports; beeper/border/AY out as CV+audio (with reverb); reads any RAM byte out as CV. Carries OneBit as an alternate boot mode."
+short-description: A cycle-accurate ZX Spectrum 128K that turns the modular jacks/knobs/switch into a patchable control surface — plus OneBit (1-bit beeper synth) as an alternate boot mode.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.0.0
-Status: released
+Status: Released
+License: MIT (card source); vendored components keep their own licences
+Editor: interface.html
+Repository: https://github.com/uglifruit/WorkshopZX
+date: 2026-07-26
 
 tags:
   - emulator
-  - z80
   - zx-spectrum
-  - spectrum-128k
+  - z80
   - ay-3-8912
+  - chiptune
 
-manual: |
-  A cycle-accurate ZX Spectrum 128K runs across both RP2040 cores. Core 1 free-runs
-  the Z80 + ULA + AY at the true emulated 3.5MHz rate and services USB; core 0's
-  48kHz ProcessSample() latches the beeper to Pulse Out 1 and the AY render to Audio
-  Out 2, samples the six input jacks + switch, and runs a user-defined mapping table
-  that presents those inputs to the Spectrum as keyboard-matrix bits, Kempston
-  joystick directions, or raw input-port values.
-  Programs are loaded as .sna / .z80 snapshots — baked into firmware (Knob X selects
-  a bank) and/or uploaded live from a browser over USB (WebMIDI/SysEx to a local
-  HTML page). The same Web UI edits the input mapping with a clickable Spectrum
-  keyboard graphic. Tape loading (LOAD "") from Audio In is a stretch goal; snapshots
-  are the primary path.
+summary: |
+  Two instruments in one firmware, chosen at power-on.
+
+  ZX SPECTRUM (normal boot): a cycle-accurate ZX Spectrum 128K (instruction-stepped
+  Z80, ULA, banked memory, AY-3-8912 with the measured real-chip volume curve),
+  running across both RP2040 cores. Load .z80/.sna snapshots and .ay/.pt3 chip-music
+  over a browser Web UI (interface.html, WebMIDI/SysEx) or baked in. Each jack/switch
+  is mappable to a Spectrum key, Kempston joystick direction, or a Z80-readable port,
+  so a Spectrum program can read patched CV/gates as data. Outputs: beeper (Pulse
+  Out 1), border voltage (CV Out 1), AY music (Audio Out 2), a reverb of the
+  beeper+AY mix (Audio Out 1, wet/dry on Knob X), and a memory-probe CV — any RAM
+  byte out as 0-5V (CV Out 2). Knob Main sets emulation speed (centre deadzone =
+  100%); Knob Y is readable at port 0x5F. Type into the Spectrum from a laptop via
+  the Web UI. The baked demo's source (BakedASM.asm) is a worked example of a
+  Spectrum program interfacing with the CV world.
+
+  ONEBIT (hold the momentary switch DOWN at power-on): a 1-bit "beeper synth" with
+  seven selectable engines (ports of classic ZX-Spectrum beeper routines) and drums.
+  Pitch CV, gate, duophony, and a cycleable drum kit. Its jack map is different from
+  ZX mode (pitch/gate/drum, not keyboard/CV-data) — see the panel overlay.
+
+  Panel overlays for both modes are in panels/. Full credits in README.md.
 
 panel:
   inputs:
     - id: CVIn1
-      name: Mapped CV In
-      description: Comparator (threshold+hysteresis) -> Spectrum key / Kempston, or continuous -> input port
+      name: Mapped input (ZX) / Voice 1 pitch (OneBit)
+      description: ZX — mappable to a key/Kempston/port (comparator; read at port 0x6F). OneBit — Voice 1 pitch, 1V/oct.
     - id: CVIn2
-      name: Mapped CV In
-      description: Second mappable CV input
+      name: Mapped input (ZX) / Voice 2 pitch (OneBit)
+      description: ZX — mappable input (port 0x7F). OneBit — Voice 2 pitch, 1V/oct (Switch Middle).
     - id: AudioIn1
-      name: Mapped Audio / Tape EAR
-      description: Mappable as CV; also the tape EAR source for LOAD "" (stretch goal)
+      name: Mapped input (ZX) / Duty & drum-pick (OneBit)
+      description: ZX — mappable input (port 0x8F). OneBit — duty mod; latches drum select at each Pulse In 2 edge.
     - id: AudioIn2
-      name: Mapped Audio In
-      description: Second mappable audio-rate input, used as CV
+      name: Mapped input (ZX) / Duty mod (OneBit)
+      description: ZX — mappable input (port 0x9F). OneBit — duty / timbre mod.
     - id: PulseIn1
-      name: Mapped Gate
-      description: Edge/level -> Spectrum key or Kempston fire (default: fire)
+      name: Mapped gate (ZX) / Note gate (OneBit)
+      description: ZX — mappable gate (port 0xAF). OneBit — note gate; held sustains.
     - id: PulseIn2
-      name: Mapped Gate
-      description: Second mappable gate input
+      name: Mapped gate (ZX) / Drum trigger (OneBit)
+      description: ZX — mappable gate (port 0xBF). OneBit — drum trigger (drum chosen by Audio In 1).
   outputs:
     - id: PulseOut1
-      name: Beeper
-      description: ULA port 0xFE bit 4 — the 1-bit speaker
+      name: Beeper (ZX) / 1-bit tone (OneBit)
+      description: ZX — ULA beeper (port 0xFE bit 4). OneBit — the 1-bit bitbanged tone.
     - id: PulseOut2
-      name: MIC / Assignable Gate
-      description: Tape MIC line, or an assignable gate output
+      name: MIC/tape (ZX) / 1-bit drum (OneBit)
+      description: ZX — ULA MIC/tape line. OneBit — the 1-bit drum lane.
     - id: CVOut1
-      name: Border Voltage
-      description: ULA port 0xFE bits 0-2 (border colour 0-7) as a stepped CV, or assignable
+      name: Border voltage (ZX) / Tone density (OneBit)
+      description: ZX — border colour (0-7) as a stepped CV. OneBit — PCM-density monitor of the tone.
+    - id: CVOut2
+      name: Memory probe (ZX) / Drum density (OneBit)
+      description: ZX — value of a Web-UI-selected RAM address (0-255) as 0-5V. OneBit — drum density.
     - id: AudioOut1
-      name: Beeper Monitor
-      description: PCM-density render of the beeper
+      name: Reverb (ZX) / Audio out (OneBit)
+      description: ZX — reverb of the beeper+AY mix, wet/dry on Knob X. OneBit — tone density audio.
     - id: AudioOut2
-      name: AY Sound
-      description: AY-3-8912 output (128K music) — 3 squares + noise + envelopes
+      name: AY sound (ZX) / Drum audio (OneBit)
+      description: ZX — AY-3-8912 output (128K/AY/PT3 music). OneBit — drum density audio.
 
 controls:
   knobs:
     - when: { z: any }
       main:
-        name: Speed
-        description: Emulation speed / turbo (default real-time x1)
+        name: Speed (ZX) / Engine (OneBit)
+        description: ZX — emulation speed, centre deadzone = exactly 100%. OneBit — engine select x note-decay.
       x:
-        name: Snapshot Bank
-        description: Selects a baked-in snapshot
+        name: Reverb (ZX) / Pitch (OneBit)
+        description: ZX — reverb wet/dry. OneBit — root pitch (+ CV In 1).
       y:
-        name: Assignable
-        description: Mappable control (assigned in the Web UI)
+        name: Port 0x5F (ZX) / Interval (OneBit)
+        description: ZX — readable by the Z80 at port 0x5F (IN 95). OneBit — voice-2 interval / per-engine timbre.
   switches:
     - id: Z
       up:
-        name: Run
-        description: Spectrum runs at the selected speed
+        name: Pause (ZX) / Duophonic (OneBit)
+        description: ZX — pause the emulator (use the Web UI here). OneBit — duophonic voicing (Knob Y interval).
       middle:
-        name: Pause
-        description: Pauses emulation
+        name: Run (ZX) / Duophonic-CV2 (OneBit)
+        description: ZX — run. OneBit — voice 2 = CV In 2; Knob Y = timbre.
       down:
-        name: NMI / Reset
-        description: Momentary — configurable NMI or machine reset
+        name: Keypress (ZX) / Cycle kit (OneBit)
+        description: ZX — mappable momentary keypress. OneBit — momentary tap cycles the drum kit. HOLD at power-on to boot OneBit.
 
   leds:
     - when: { z: any }
       display: list
       items:
         - id: LED0
-          name: Border / activity
-          description: Border colour bar + CPU / AY / paging activity
+          name: Mode / status
+          description: ZX — left column = mode (128K/48K/AY), right = heartbeat/correct-speed/beeper. OneBit — left = engine number in binary, right = note-decay/kit/drum activity.
 
 host:
   notes: |
-    v1.0 released. Cycle-accurate 128K Spectrum (instruction-stepped Z80, ULA,
-    banked memory, AY-3-8912 with the measured real-chip volume curve). Loads
-    .z80/.sna snapshots and .ay/.pt3 chip-music via a browser Web UI (interface.html,
-    WebMIDI/SysEx). Inputs map to keys / Kempston / Z80-readable ports; outputs give
-    beeper, border, AY (with reverb) and a memory-probe CV. Hold the momentary switch
-    DOWN at power-on to boot the bundled OneBit beeper synth instead.
+    v1.0 released. Snapshots and music decode in the browser and stream to the card,
+    so any size fits with no large buffer on the RP2040. Hold the momentary switch
+    DOWN at power-on to boot OneBit instead of the Spectrum.
 
-    Panel overlays for both modes are in panels/.
-
-    CREDITS — Z80 core: superzazu/z80 (Nicolas Allemand, MIT). Sinclair ROMs ©
-    Amstrad, used by permission. OneBit's beeper engines are ports of real ZX-Spectrum
-    routines (Joffa Smith, Shiru, Jason Brooke, Mark Alexander, utz, via Beepola).
-    PT3 player: Pro Tracker 3 / Vortex Tracker. See README.md for the full credits.
+    CREDITS — ComputerCard by Chris Johnson (Music Thing Modular). Z80 core:
+    superzazu/z80 (Nicolas Allemand, MIT). Sinclair ROMs (c) Amstrad, used by
+    permission. AY volume curve from measured real-chip data. OneBit's beeper engines
+    are ports of real ZX-Spectrum routines (Joffa Smith, Shiru, Jason Brooke, Mark
+    Alexander, utz, via Beepola / Chris Cowley). PT3 player: Pro Tracker 3 / Vortex
+    Tracker. Built with Claude Code. See README.md for the full credits.
