@@ -1,0 +1,6 @@
+build/
+UF2/*.uf2
+rom128_0.h
+rom128_1.h
+rom48.h
+snapshot_data.h
