@@ -27,6 +27,15 @@ Runs on a real Workshop Computer. Built on the RP2040.
 (ZX runs at 200 MHz, OneBit at 144 MHz; the boot dispatcher sets the clock for
 whichever you choose.)
 
+## Panel overlays
+
+Printable panel overlays for both modes are in [`panels/`](panels/) — they label
+every knob and jack for the mode. The panels below are the quick reference.
+
+| ZX Spectrum mode | OneBit mode |
+|:---:|:---:|
+| ![ZX Spectrum overlay](panels/ZX%20Spectrum%20mode%20overlay.png) | ![OneBit overlay](panels/OneBit%20mode%20overlay.png) |
+
 ---
 
 # Mode 1 — ZX Spectrum
@@ -94,8 +103,11 @@ Pulse In 1 `0xAF`, Pulse In 2 `0xBF`, Switch `0xCF`.
 
 ## Web UI (ZX)
 
-USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install. Open `interface.html`,
-click **Connect**. (Pause the card — switch Up — while uploading.)
+USB-MIDI / WebMIDI SysEx — **Chrome or Edge**, no install.
+
+> **The web app is the file [`interface.html`](interface.html)** (repo root). Open it
+> in Chrome/Edge, plug the card into USB, and click **Connect**. (Pause the card —
+> switch Up — while uploading.)
 
 - **Upload** `.z80` / `.sna` / `.ay` / `.pt3`.
 - **Remap** inputs on a clickable QWERTY keyboard, with **Kempston**, **→ Port** and

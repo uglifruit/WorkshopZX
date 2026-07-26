@@ -3,7 +3,7 @@ Description: "ZX — a cycle-accurate ZX Spectrum 128K (Z80 + ULA + banked RAM +
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
 Version: 1.0.0
-Status: working
+Status: released
 
 tags:
   - emulator
@@ -96,7 +96,16 @@ controls:
 
 host:
   notes: |
-    Version 0.1.0 — development. Full-fat target: cycle-accurate 128K (Z80 verified
-    against zexall/FUSE vectors), AY on Audio Out 2, snapshot loading, an input->key
-    mapping engine, and a USB Web UI for snapshot upload + input mapping. Contended
-    memory timing and tape-EAR loading are later/stretch items.
+    v1.0 released. Cycle-accurate 128K Spectrum (instruction-stepped Z80, ULA,
+    banked memory, AY-3-8912 with the measured real-chip volume curve). Loads
+    .z80/.sna snapshots and .ay/.pt3 chip-music via a browser Web UI (interface.html,
+    WebMIDI/SysEx). Inputs map to keys / Kempston / Z80-readable ports; outputs give
+    beeper, border, AY (with reverb) and a memory-probe CV. Hold the momentary switch
+    DOWN at power-on to boot the bundled OneBit beeper synth instead.
+
+    Panel overlays for both modes are in panels/.
+
+    CREDITS — Z80 core: superzazu/z80 (Nicolas Allemand, MIT). Sinclair ROMs ©
+    Amstrad, used by permission. OneBit's beeper engines are ports of real ZX-Spectrum
+    routines (Joffa Smith, Shiru, Jason Brooke, Mark Alexander, utz, via Beepola).
+    PT3 player: Pro Tracker 3 / Vortex Tracker. See README.md for the full credits.
