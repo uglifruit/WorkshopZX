@@ -145,22 +145,35 @@ The baked-in default demo is exactly this — its source is
 That's the whole loop — modular in → Spectrum logic → audio/CV out — in ~40 lines.
 Start from it. (`snapshots/bakedasm.z80` is the assembled version that gets baked in.)
 
-### More worked examples
+### More worked examples — `FLASHME/DEMO-SFX*`
 
-Four further demos live in [`FLASHME/`](FLASHME/) — source and assembled `.z80`
-side by side, so you can hear one and then read exactly how it works. Upload the
-`.z80` over the Web UI.
+Four further demos live in [`FLASHME/`](FLASHME/), each as source + assembled
+snapshot (`DEMO-SFX2.asm` / `DEMO-SFX2.z80`, and so on), so you can hear one and
+then read exactly how it works. Upload the `.z80` over the Web UI.
+
+> **These are examples, not instruments.** They exist to show *techniques* — how to
+> read a jack, how to build an oscillator in Z80, how to get a signal back out — not
+> because they sound good. Several are harsh, some are barely musical, and one is
+> deliberately a bit broken (see SFX4 below). Treat them as annotated code you can
+> hear, and raid them for parts.
 
 | Demo | What it is |
 |------|-----------|
-| [`DEMO-SFX2.asm`](FLASHME/DEMO-SFX2.asm) | Keyboard-triggered SFX bank — a VCA decay ping and friends, with Knob Y (port 95) setting envelope length |
-| [`DEMO-SFX3.asm`](FLASHME/DEMO-SFX3.asm) | Riser / siren — pitch climbs the longer the key is held |
-| [`DEMO-SFX4.asm`](FLASHME/DEMO-SFX4.asm) | A **CV-driven oscillator**: hard sync on Pulse In 1, pitch from CV In 1, FM from Knob Y, PWM waveshaping from Audio In 2, ring-mod from Pulse In 2 |
-| [`DEMO-SFX5.asm`](FLASHME/DEMO-SFX5.asm) | A **Turing-machine** shift-register sequencer — two phase accumulators, each hard-syncable, with Phase A doubling as a variable clock divider |
+| [`DEMO-SFX2`](FLASHME/DEMO-SFX2.asm) | **Six key-triggered SFX engines.** Q = VCA decay ping, A = PWM, O = binary rhythmic gating (AM), P = hard-sync vocal formants, SPACE = LFSR noise clock-divider, ENTER = arpeggiator. Knob Y (port 95) does something different in each — envelope length, duty cycle, bitmask, master pitch, sample rate, interval |
+| [`DEMO-SFX3`](FLASHME/DEMO-SFX3.asm) | **Six more, all time-evolving.** Q = riser/siren (pitch climbs while held), A = portamento glide, O = charging-capacitor density builder, P = LFO pulse-width sweep, SPACE = sequencer play, ENTER = bitcrush texture morph |
+| [`DEMO-SFX4`](FLASHME/DEMO-SFX4.asm) | **CV-driven oscillator / audio mangler.** Pitch from CV In 1, hard sync on Pulse In 1, FM from Knob Y, PWM threshold from Audio In 2, ring-mod invert from Pulse In 2. Switch Down swaps to an audio-thru mode where Audio In 1 gets bitwise-ANDed with CV In 2 (brutal bitcrushing) |
+| [`DEMO-SFX5`](FLASHME/DEMO-SFX5.asm) | **Turing-machine sequencer.** Two 8-bit phase accumulators (CV In 1 / CV In 2), each hard-syncable from its Pulse In. Phase A doubles as the shift-register clock divider; the bit shifted in comes from comparing Audio In 1 against Audio In 2. Switch picks continuous morphing vs. stepped CV. Writes to screen memory so **CV Out 2's memory probe** carries the sequence |
 
-`DEMO-SFX2`/`3` are keyboard-driven, so they respond to whatever you've mapped to
-keys. `DEMO-SFX4`/`5` read the input **ports** directly and are the better model if
-you want CV as data.
+**Set up the input mapping first.** `DEMO-SFX4` and `SFX5` read the input *ports*, so
+in the Web UI each jack you want to use must be mapped to **→ Port** — otherwise they
+read the idle `0xFF`/centre value and nothing appears to respond. `DEMO-SFX2`/`3` are
+keyboard-driven instead, so map jacks to **keys** for those.
+
+A known rough edge in `DEMO-SFX4`: its oscillator accumulates pitch through a 16-bit
+phase register, so the audible range tops out around 70 Hz — a slow thump rather than
+a tone. Accumulating into the high byte directly (`ADD A,H` / `LD H,A`) moves it into
+audio range. Left as-is because it's a good illustration of why phase-accumulator
+width matters.
 
 ## Outputs (ZX)
 
