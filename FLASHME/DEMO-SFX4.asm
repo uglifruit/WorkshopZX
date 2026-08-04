@@ -18,11 +18,10 @@ NO_SYNC:
         ; 2. ADVANCE OSCILLATOR PHASE (CV In 1: 0x2B)
         ; ---------------------------------------------------------
         IN A, ($2B)     ; Read Pitch CV (0-255)
-        ADD A, L        ; Add to low byte of phase
-        LD L, A
-        JR NC, NO_INC_H
-        INC H           ; Carry over to high byte (H is our base wave)
-NO_INC_H:
+        ADD A, H        ; Accumulate straight into H (H IS the saw wave).
+        LD H, A         ; 8-bit accumulator: pitch = looprate * CV / 256.
+                        ; (Going via L first would divide by 65536 instead,
+                        ;  capping the oscillator around 70 Hz — sub-audio.)
 
         ; ---------------------------------------------------------
         ; 3. ROUTING / ENGINE SELECT (Switch: 0x67)

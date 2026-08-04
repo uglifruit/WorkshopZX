@@ -169,11 +169,16 @@ in the Web UI each jack you want to use must be mapped to **→ Port** — other
 read the idle `0xFF`/centre value and nothing appears to respond. `DEMO-SFX2`/`3` are
 keyboard-driven instead, so map jacks to **keys** for those.
 
-A known rough edge in `DEMO-SFX4`: its oscillator accumulates pitch through a 16-bit
-phase register, so the audible range tops out around 70 Hz — a slow thump rather than
-a tone. Accumulating into the high byte directly (`ADD A,H` / `LD H,A`) moves it into
-audio range. Left as-is because it's a good illustration of why phase-accumulator
-width matters.
+`DEMO-SFX4`'s oscillator is an **8-bit phase accumulator**: CV In 1 is added straight
+to the byte that *is* the saw wave, so pitch ≈ looprate × CV / 256. The Z80 loop runs
+at roughly 18 kHz, putting CV 1 at about 70 Hz and CV 64 around 4.5 kHz. The lower
+part of the CV sweep is the musically useful bit — past CV ~128 you're above the
+loop's Nyquist and the tone aliases into grit, which is either a bug or a feature
+depending on what you're after.
+
+(Accumulator width is the whole ballgame here: routing the same CV through a 16-bit
+accumulator divides pitch by 65536 instead of 256 and caps the oscillator around
+70 Hz — a slow thump rather than a tone.)
 
 ## Outputs (ZX)
 
