@@ -226,9 +226,9 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 
 	case MSG_MAP_GET:
 	{
-		// Report the mapping table: for each of SRC_COUNT sources, 3 bytes:
-		// kind, arg, threshold-high-nibble packed (kept simple/7-bit safe).
-		uint8_t rep[2 + SRC_COUNT * 3];
+		// Report the mapping table: for each of SRC_COUNT sources, 4 bytes:
+		// kind, arg, threshold-high-nibble, depth7 (all 7-bit safe for SysEx).
+		uint8_t rep[2 + SRC_COUNT * 4];
 		uint32_t p = 0;
 		rep[p++] = MSG_MAP_REPORT;
 		rep[p++] = SRC_COUNT;
@@ -238,6 +238,7 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 			rep[p++] = mp.kind & 0x7F;
 			rep[p++] = mp.arg & 0x7F;
 			rep[p++] = uint8_t((mp.threshold >> 4) & 0x7F); // coarse threshold
+			rep[p++] = uint8_t((mp.depth >> 1) & 0x7F);     // AY mangle depth (7-bit)
 		}
 		SendSysEx(rep, p);
 		break;
@@ -245,17 +246,25 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 
 	case MSG_MAP_SET:
 	{
-		// payload: id, count, then count*(kind,arg,threshold7) triples.
+		// payload: id, count, then count*(kind,arg,threshold7[,depth7]) records.
+		// The depth byte is optional (older UIs send 3-byte records) — detect the
+		// record width from the payload length so the last record isn't misread.
 		if (size < 2) break;
 		uint8_t count = data[1];
 		uint32_t p = 2;
-		for (int s = 0; s < count && s < SRC_COUNT && p + 2 < size; s++)
+		uint32_t recBytes = count ? (size - 2) / count : 0;
+		bool hasDepth = (recBytes >= 4);
+		// Need a whole record left: 3 bytes, or 4 when a depth byte is present.
+		uint32_t need = hasDepth ? 4 : 3;
+		for (int s = 0; s < count && s < SRC_COUNT && p + need <= size; s++)
 		{
 			Mapping mp;
 			mp.kind      = (TargetKind)data[p++];
 			mp.arg       = data[p++];
 			mp.threshold = int16_t(data[p++]) << 4;
 			mp.invert    = false;
+			// 4th byte (when present) = depth (0..127 -> 0..254); else full.
+			mp.depth     = hasDepth ? uint8_t(data[p++] << 1) : 255;
 			mapper_->SetMapping((Source)s, mp);
 		}
 		uint8_t st[] = { MSG_STATUS, 2 }; // 2 = mapping updated

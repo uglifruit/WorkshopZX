@@ -26,7 +26,7 @@ from scratch in isolation**.
 4. **Add the table row** to `releases/README.md` (keep the numeric order). Row:
 
    ```
-   | 61_ZX_Spectrum | A cycle-accurate ZX Spectrum 128K instrument — load games/demos/snapshots and .ay/.pt3 chip-music, patch CV/gates into the Spectrum keyboard/joystick/ports, beeper/border/AY out as CV+audio (with reverb); hold switch DOWN at boot for OneBit (1-bit beeper synth). | 1.0.0<br>Released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
+   | 61_ZX_Spectrum | A cycle-accurate ZX Spectrum 128K instrument — load games/demos/snapshots and .ay/.pt3 chip-music, patch CV/gates into the Spectrum keyboard/joystick/ports, mangle the AY live while music plays, beeper/border/AY out as CV+audio (with reverb); hold switch DOWN at boot for OneBit (1-bit beeper synth). | 1.2.0<br>Released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
    ```
    (replace `61` with the assigned number in both the folder name and this row)
 
