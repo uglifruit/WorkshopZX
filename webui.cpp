@@ -46,24 +46,35 @@ uint32_t Decode7bit(const uint8_t *src, uint32_t srcLen, uint8_t *dst, uint32_t 
 }
 
 // --- USB send ---------------------------------------------------------------
+// The TX FIFO is CFG_TUD_MIDI_TX_BUFSIZE (64 bytes at full speed, which is what
+// the RP2040 is), and tud_midi_stream_write expands each 3 SysEx bytes into a
+// 4-byte USB-MIDI event packet — so it holds only ~48 bytes of message. Anything
+// longer must be drained mid-write by tud_task(). Call it on EVERY iteration,
+// not just when a write returns 0: a partial write leaves a full FIFO, and
+// looping straight back into another write without draining just spins.
 static void MidiWriteBlocking(const uint8_t *data, uint32_t size)
 {
 	uint32_t sent = 0;
 	while (sent < size)
 	{
-		uint32_t n = tud_midi_stream_write(0, data + sent, size - sent);
-		sent += n;
-		if (!n) tud_task();
+		sent += tud_midi_stream_write(0, data + sent, size - sent);
+		tud_task();
 	}
 }
 
+// Emit F0 <manuf> <payload> F7 as ONE stream write. Writing the header, body and
+// footer as three separate calls let the FIFO flush between them, so the host saw
+// the message split across several WebMIDI events — and a continuation fragment
+// carries no 0xF0 for the browser to recognise.
 void WebUI::SendSysEx(const uint8_t *data, uint32_t size)
 {
-	uint8_t header[] = { 0xF0, ZX_MANUFACTURER_ID };
-	uint8_t footer[] = { 0xF7 };
-	MidiWriteBlocking(header, 2);
-	MidiWriteBlocking(data, size);
-	MidiWriteBlocking(footer, 1);
+	uint8_t frame[2 + kTxMsgMax + 1];
+	if (size > kTxMsgMax) return;            // caller bug; never silently truncate
+	frame[0] = 0xF0;
+	frame[1] = ZX_MANUFACTURER_ID;
+	memcpy(frame + 2, data, size);
+	frame[2 + size] = 0xF7;
+	MidiWriteBlocking(frame, 2 + size + 1);
 }
 
 // --- Init / task ------------------------------------------------------------

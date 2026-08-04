@@ -236,17 +236,44 @@ function setStatus(on, text){
 setStatus(false, "NOT CONNECTED");
 
 // ---- incoming ------------------------------------------------------------
+// WebMIDI hands us whatever the driver delivers, which is NOT guaranteed to be
+// one whole SysEx per event: the card writes header/body/footer as separate USB
+// writes, and a 64-byte full-speed MIDI FIFO can flush mid-message. A
+// continuation fragment has no leading 0xF0, so testing for one drops the tail
+// of every split message. Reassemble from 0xF0 to 0xF7 before parsing.
+let sysexBuf = null;   // non-null while a SysEx is in progress
 function onMidi(ev){
-  const d = ev.data;
-  if(d[0]!==0xF0 || d[1]!==MANUF) return;
-  const p = d.slice(2, d[d.length-1]===0xF7 ? -1 : undefined);
+  for(const b of ev.data){
+    if(b === 0xF0){ sysexBuf = []; continue; }      // (re)start on status byte
+    if(sysexBuf === null) continue;                 // not in a SysEx — ignore
+    if(b === 0xF7){ const m = sysexBuf; sysexBuf = null; onSysex(m); continue; }
+    if(b & 0x80) continue;                          // real-time byte: legal mid-SysEx
+    sysexBuf.push(b);
+  }
+}
+
+// A complete SysEx payload: [manufacturer, id, ...body]
+function onSysex(msg){
+  if(msg.length < 2 || msg[0] !== MANUF) return;
+  const p = msg.slice(1);
   const id = p[0];
   if(id===MSG.INFO){
     setStatus(true, `Connected — firmware v${p[1]}.${p[2]}.${p[3]}`);
   } else if(id===MSG.MAP_REPORT){
     const count = p[1];
-    // Detect record width (4 bytes with depth, or legacy 3) from the payload.
-    const rec = count ? Math.floor((p.length-2)/count) : 4;
+    // Record width is 4 (kind,arg,threshold,depth) or 3 for legacy firmware that
+    // predates the depth byte. Derive it ONLY from an exact length match: a short
+    // payload used to divide out to a smaller stride, so every subsequent record
+    // was read at the wrong offset and the mapping came back scrambled rather
+    // than obviously broken. Better to report the truncation than to guess.
+    const rec = (count && p.length === 2+count*4) ? 4
+              : (count && p.length === 2+count*3) ? 3
+              : 0;
+    if(!rec){
+      setStatus(true, `Mapping read-back was truncated (${p.length} bytes for `
+                    + `${count} sources) — not applied. Try Read again.`);
+      return;
+    }
     for(let s=0;s<count;s++){
       const base = 2+s*rec;
       const kind=p[base], arg=p[base+1];
