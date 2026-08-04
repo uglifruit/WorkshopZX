@@ -26,7 +26,7 @@ from scratch in isolation**.
 4. **Add the table row** to `releases/README.md` (keep the numeric order). Row:
 
    ```
-   | 61_ZX_Spectrum | A cycle-accurate ZX Spectrum 128K instrument — load games/demos/snapshots and .ay/.pt3 chip-music, patch CV/gates into the Spectrum keyboard/joystick/ports, mangle the AY live while music plays, beeper/border/AY out as CV+audio (with reverb); hold switch DOWN at boot for OneBit (1-bit beeper synth). | 1.2.0<br>Released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
+   | 61_ZX_Spectrum | A cycle-accurate ZX Spectrum 128K instrument — load games/demos/snapshots and .ay/.pt3 chip-music, patch CV/gates into the Spectrum keyboard/joystick/ports, mangle the AY live while music plays, beeper/border/AY out as CV+audio (with reverb); hold switch DOWN at boot for OneBit (1-bit beeper synth). | 1.2.1<br>Released | C++ (Pico SDK / ComputerCard) | Andy Jenkinson (uglifruit) |
    ```
    (replace `61` with the assigned number in both the folder name and this row)
 
@@ -47,6 +47,23 @@ from scratch in isolation**.
   referenced by the `Editor:` field in `info.yaml`.
 
 ## Housekeeping done for the release copy
-- `Editor: interface.html` removed from `info.yaml` (that field expects a hosted URL).
+- `info.yaml` carries the hosted GitHub Pages URL in `Editor:`, plus `contact:` and
+  `discussion:` (see `documentation/info.yaml.md` upstream for the field list).
 - Compiled firmware placed in `UF2/zx.uf2`.
 - Overlays in `panels/`; ROMs in `roms/`; vendored Z80 core in `vendor/sz80/`.
+
+## Keeping this folder in sync
+The folder is a **snapshot**, not a symlink — it drifts as the main tree moves, and
+that drift is invisible until someone flashes a stale `UF2/`. When cutting a release:
+
+1. Copy the changed sources across (`ay.cpp`, `interface.html`, `machine.cpp`,
+   `main.cpp`, `mapping.*`, `spectrum.*`, `webui.*`, `README.md`, `info.yaml`,
+   `.gitignore`) and any renamed assets — `panels/` filenames must stay space-free
+   or the rendered README images break.
+2. Bump `Version:` in `info.yaml` **and** the `MSG_INFO` version bytes in
+   `webui.cpp` together; the Web UI banner reads the latter, so they diverge
+   silently if you only do one.
+3. Rebuild in isolation (copy the folder out of the repo, `cmake -B build -G Ninja
+   && cmake --build build`) and copy the resulting `zx.uf2` into `UF2/`.
+   Two builds of identical sources differ in 4 bytes — a `__DATE__` string — so
+   compare section sizes rather than hashes to confirm they match.

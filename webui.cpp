@@ -195,7 +195,9 @@ void WebUI::OnSysEx(const uint8_t *data, uint32_t size)
 	{
 	case MSG_HELLO:
 	{
-		uint8_t info[] = { MSG_INFO, 0, 3, 0 }; // version 0.3.0
+		// Keep in sync with Version: in info.yaml — the Web UI shows this in its
+		// connected banner, so a stale value here misreports the running firmware.
+		uint8_t info[] = { MSG_INFO, 1, 2, 1 }; // version 1.2.1
 		SendSysEx(info, sizeof(info));
 		break;
 	}

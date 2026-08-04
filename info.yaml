@@ -3,7 +3,7 @@ Name: ZX
 short-description: A cycle-accurate ZX Spectrum 128K that turns the modular jacks/knobs/switch into a patchable control surface — plus OneBit (1-bit beeper synth) as an alternate boot mode.
 Language: C++ (Pico SDK / ComputerCard)
 Creator: Andy Jenkinson (uglifruit)
-Version: "1.2.0"
+Version: "1.2.1"
 Status: Released
 License: MIT (card source); vendored components keep their own licences
 Editor: https://uglifruit.github.io/WorkshopZX/interface.html
@@ -133,6 +133,11 @@ controls:
 
 host:
   notes: |
+    v1.2.1 — fixes the mapping read-back in the Web UI: longer SysEx replies from
+    the card could arrive split across several WebMIDI events, and the UI dropped
+    every fragment after the first, so reading the mapping back showed only a
+    couple of inputs assigned and the rest blank.
+
     v1.2 — live AY mangling while .ay/.pt3 music plays: per-channel square duty
     (PWM the real chip can't do), envelope and noise period bend, and gate-mute,
     each with its own depth control. Also moves the Z80-readable input ports to a
