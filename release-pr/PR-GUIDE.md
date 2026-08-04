@@ -43,9 +43,8 @@ from scratch in isolation**.
 - **No copyrighted games/music** are included; only the freely-usable `bakedasm` demo.
 - **Builds** with the standard Pico SDK flow (`cmake -B build -G Ninja && cmake --build
   build`); ROM/snapshot headers are generated at build time by `tools/bin2h.py`.
-- **Web app** is `interface.html` (WebMIDI, Chrome/Edge) — no hosted editor URL yet, so
-  no `Editor:` field; it's described in the summary. Host it later and add the field if
-  you like.
+- **Web app** is `interface.html` (WebMIDI, Chrome/Edge), hosted on GitHub Pages and
+  referenced by the `Editor:` field in `info.yaml`.
 
 ## Housekeeping done for the release copy
 - `Editor: interface.html` removed from `info.yaml` (that field expects a hosted URL).

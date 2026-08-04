@@ -9,8 +9,13 @@ License: MIT (card source); vendored components keep their own licences
 Editor: https://uglifruit.github.io/WorkshopZX/interface.html
 web-entry: interface.html
 repository: https://github.com/uglifruit/WorkshopZX
+discussion: https://discord.com/channels/1210238368898879569/1530739124703723691
 date-created: 2026-07-26
 date-updated: 2026-08-04
+
+contact:
+  email: andyuglifruit@hotmail.com
+  website: https://github.com/uglifruit/WorkshopZX
 
 tags:
   - emulator
